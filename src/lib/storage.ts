@@ -8,7 +8,7 @@ import {
   seedSalaries,
   SEED_VERSION,
   STORAGE_KEY,
-  WEDDING_LABELS_SEED_VERSION,
+  WEDDING_FOTO2_AUG_SEED_VERSION,
 } from './defaults'
 import { createWeddingState, JUNE_PAID_CHECKS } from './wedding'
 import type {
@@ -67,7 +67,7 @@ function applyWeddingJuneSeed(
   const base = createWeddingState()
   if (!wedding) return base
 
-  if (seedVersion !== undefined && seedVersion >= WEDDING_LABELS_SEED_VERSION) {
+  if (seedVersion !== undefined && seedVersion >= WEDDING_FOTO2_AUG_SEED_VERSION) {
     return {
       ...base,
       ...wedding,
@@ -91,7 +91,8 @@ function applyWeddingJuneSeed(
   const rename: Record<string, string> = {
     'Jul::Salão (resto junho)': 'Jul::Salão (complemento)',
     'Jul::Obra banheiro ✓ quitado': 'Jul::Obra banheiro (restante)',
-    'Jul::Fotógrafo ✓ quitado (2ª/2)': 'Jul::Fotógrafo – 2ª parcela',
+    'Jul::Fotógrafo ✓ quitado (2ª/2)': 'Ago::Fotógrafo – 2ª parcela',
+    'Jul::Fotógrafo – 2ª parcela': 'Ago::Fotógrafo – 2ª parcela',
     'Dez::Salão ✓ quitado': 'Dez::Salão (última parcela)',
     'Dez::Vestido ✓ quitado (7/7)': 'Dez::Vestido (7/7 · última)',
     'Dez::Dia da Noiva ✓ quitado': 'Dez::Dia da Noiva (última)',

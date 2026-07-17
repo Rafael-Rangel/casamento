@@ -137,6 +137,7 @@ export function buildWeddingSchedule(
   const sched: MonthSchedule[] = WEDDING_MONTHS.map((m, i) => {
     const last = i === lastIdx
     const july = i === 0
+    const august = i === 1
     const payments: SchedulePayment[] = []
     let rem = budgets[i]
     const add = (name: string, amount: number, tag: string) => {
@@ -162,8 +163,9 @@ export function buildWeddingSchedule(
 
     if (july) {
       add('Obra banheiro (restante)', 600, 'obra')
-      // 1ª parcela veio de junho (única pendência); 2ª parcela deste mês
       add('Fotógrafo – 1ª parcela', 1700, 'foto')
+    }
+    if (august) {
       add('Fotógrafo – 2ª parcela', 1700, 'foto')
     }
 
