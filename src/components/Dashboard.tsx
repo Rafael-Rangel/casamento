@@ -97,8 +97,14 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
+          {
+            label: 'Saldo em caixa',
+            value: state.cashBalance?.amount ?? 0,
+            icon: Wallet,
+            tone: 'accent' as const,
+          },
           {
             label: 'Receita do mês',
             value: current.totalIncome,
@@ -112,7 +118,7 @@ export function Dashboard() {
             tone: 'negative' as const,
           },
           {
-            label: 'Saldo disponível',
+            label: 'Saldo do mês',
             value: current.balance,
             icon: Wallet,
             tone: current.balance >= 0 ? ('positive' as const) : ('negative' as const),

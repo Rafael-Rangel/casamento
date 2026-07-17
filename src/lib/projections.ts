@@ -267,7 +267,17 @@ export function weddingMonthBudgets(state: FinanceState): number[] {
     keys.includes(p.key),
   )
   const byKey = Object.fromEntries(all.map((p) => [p.key, p.weddingBudget]))
-  return keys.map((k) => byKey[k] ?? 0)
+  const budgets = keys.map((k) => byKey[k] ?? 0)
+
+  // Saldo em caixa entra no mês da data de referência (ex.: 17/07 → julho)
+  const cash = state.cashBalance
+  if (cash?.amount && cash.asOf) {
+    const cashKey = cash.asOf.slice(0, 7)
+    const idx = keys.indexOf(cashKey)
+    if (idx >= 0) budgets[idx] += cash.amount
+  }
+
+  return budgets
 }
 
 export function sumByKind(entries: MonthEntry[], kind: MonthEntry['kind']) {

@@ -11,6 +11,7 @@ import { loadState, saveState } from '../lib/storage'
 import { buildProjections } from '../lib/projections'
 import { STORAGE_KEY } from '../lib/defaults'
 import type {
+  CashBalance,
   Category,
   Expense,
   FinanceState,
@@ -35,6 +36,7 @@ interface FinanceContextValue {
   upsertCategory: (category: Category) => void
   removeCategory: (id: string) => void
   updateWedding: (wedding: Partial<WeddingState>) => void
+  setCashBalance: (cash: Partial<CashBalance>) => void
   toggleWeddingCheck: (monthShort: string, itemName: string) => void
   isWeddingChecked: (monthShort: string, itemName: string) => boolean
   resetAll: () => void
@@ -128,6 +130,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       })),
     updateWedding: (wedding) =>
       patch((s) => ({ ...s, wedding: { ...s.wedding, ...wedding } })),
+    setCashBalance: (cash) =>
+      patch((s) => ({
+        ...s,
+        cashBalance: {
+          ...(s.cashBalance || { amount: 0, asOf: new Date().toISOString().slice(0, 10), notes: '' }),
+          ...cash,
+        },
+      })),
     toggleWeddingCheck: (monthShort, itemName) =>
       patch((s) => {
         const key = `${monthShort}::${itemName}`

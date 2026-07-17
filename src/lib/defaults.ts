@@ -1,4 +1,5 @@
 import type {
+  CashBalance,
   Category,
   Expense,
   FinanceState,
@@ -10,7 +11,16 @@ import { createWeddingState } from './wedding'
 
 export const PROJECT_SEED_VERSION = 1
 export const SALARY_SEED_VERSION = 2
-export const SEED_VERSION = SALARY_SEED_VERSION
+export const CASH_SEED_VERSION = 3
+export const SEED_VERSION = CASH_SEED_VERSION
+
+export function seedCashBalance(): CashBalance {
+  return {
+    amount: 6760.22,
+    asOf: '2026-07-17',
+    notes: 'Saldo disponível após receitas e despesas pessoais até 17/07/2026',
+  }
+}
 
 export function seedSalaries(): SalarySource[] {
   return [
@@ -143,6 +153,7 @@ export function createInitialState(): FinanceState {
     categories: [...DEFAULT_CATEGORIES],
     projectionMonths: 12,
     wedding: createWeddingState(),
+    cashBalance: seedCashBalance(),
     seedVersion: SEED_VERSION,
   }
 }

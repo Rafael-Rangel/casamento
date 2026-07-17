@@ -3,17 +3,19 @@ import { useFinance } from '../context/FinanceContext'
 import { weddingMonthBudgets } from '../lib/projections'
 import { buildWeddingSchedule, TAG_COLORS, TAG_LABEL } from '../lib/wedding'
 import { fmt } from '../lib/format'
-import { Money } from './ui'
+import { Button, Field, Input, Money } from './ui'
 
 export function WeddingPage() {
-  const { state, toggleWeddingCheck, isWeddingChecked } = useFinance()
+  const { state, toggleWeddingCheck, isWeddingChecked, setCashBalance } = useFinance()
   const [tab, setTab] = useState<'cronograma' | 'resumo'>('cronograma')
   const [activeMonth, setActiveMonth] = useState(0)
   const [showDeficit, setShowDeficit] = useState(false)
+  const [cashDraft, setCashDraft] = useState(String(state.cashBalance?.amount ?? ''))
 
   const budgets = useMemo(() => weddingMonthBudgets(state), [state])
   const avgBudget =
     budgets.length > 0 ? budgets.reduce((a, b) => a + b, 0) / budgets.length : 0
+  const cash = state.cashBalance?.amount ?? 0
 
   const { schedule, deficit, unpaid, totalRemaining } = useMemo(
     () => buildWeddingSchedule(budgets, state.wedding.flexItems),
@@ -43,6 +45,17 @@ export function WeddingPage() {
     ['Obra banheiro – mão de obra (restante)', state.wedding.totals.obraMaoDeObra],
   ] as [string, number][]
 
+  const saveCash = () => {
+    const amount = Number(String(cashDraft).replace(',', '.')) || 0
+    setCashBalance({
+      amount,
+      asOf: state.cashBalance?.asOf || '2026-07-17',
+      notes:
+        state.cashBalance?.notes ||
+        'Saldo disponível após receitas e despesas pessoais',
+    })
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-4">
       <header className="text-center">
@@ -56,17 +69,47 @@ export function WeddingPage() {
       </header>
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <p className="mb-1 text-sm font-bold text-[var(--ink)]">Saldo disponível hoje</p>
+        <p className="mb-3 text-xs text-[var(--ink-muted)]">
+          O que sobrou na conta em {state.cashBalance?.asOf || '2026-07-17'} — entra no
+          orçamento de julho do casamento.
+        </p>
+        <div className="flex items-end gap-2">
+          <Field label="Valor em caixa">
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              value={cashDraft}
+              onChange={(e) => setCashDraft(e.target.value)}
+            />
+          </Field>
+          <Button onClick={saveCash} className="mb-0.5 shrink-0">
+            Salvar
+          </Button>
+        </div>
+        <div className="mt-3 flex justify-between text-sm font-bold">
+          <span>Registrado</span>
+          <Money value={cash} />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <p className="mb-2 text-sm font-bold text-[var(--ink)]">Sobra para o casamento</p>
         <p className="text-xs text-[var(--ink-muted)]">
-          Calculada automaticamente: receitas (salário + projetos) − gastos da vida (cartão,
-          moradia, etc.). Ajuste em Salários, Projetos e Despesas.
+          Receitas futuras (salário + projetos) − gastos da vida, somando o saldo em caixa
+          de julho.
         </p>
         <div className="mt-3 flex justify-between text-sm">
-          <span className="text-[var(--ink-muted)]">Média mensal</span>
+          <span className="text-[var(--ink-muted)]">Saldo em caixa (17/07)</span>
+          <Money value={cash} />
+        </div>
+        <div className="mt-1 flex justify-between text-sm">
+          <span className="text-[var(--ink-muted)]">Média mensal (com caixa)</span>
           <Money value={avgBudget} />
         </div>
         <div className="mt-1 flex justify-between text-sm font-bold">
-          <span>Total 7 meses</span>
+          <span>Total disponível 7 meses</span>
           <Money value={totalSavings} />
         </div>
       </div>

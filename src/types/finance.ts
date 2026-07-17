@@ -91,6 +91,14 @@ export interface WeddingState {
   }
 }
 
+export interface CashBalance {
+  /** Dinheiro disponível agora (conta / caixa) */
+  amount: number
+  /** Data de referência do saldo (YYYY-MM-DD) */
+  asOf: string
+  notes: string
+}
+
 export interface FinanceState {
   salaries: SalarySource[]
   projects: Project[]
@@ -99,6 +107,8 @@ export interface FinanceState {
   categories: Category[]
   projectionMonths: number
   wedding: WeddingState
+  /** Saldo disponível na conta na data de referência */
+  cashBalance: CashBalance
   /** Controle de sementes já aplicadas (ex.: projetos KoruVision) */
   seedVersion?: number
 }

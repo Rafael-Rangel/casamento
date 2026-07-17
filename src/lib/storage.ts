@@ -1,14 +1,16 @@
 import {
+  CASH_SEED_VERSION,
   createInitialState,
   PROJECT_SEED_VERSION,
   SALARY_SEED_VERSION,
+  seedCashBalance,
   seedProjects,
   seedSalaries,
   SEED_VERSION,
   STORAGE_KEY,
 } from './defaults'
 import { createWeddingState } from './wedding'
-import type { Expense, FinanceState, Project, SalarySource } from '../types/finance'
+import type { CashBalance, Expense, FinanceState, Project, SalarySource } from '../types/finance'
 
 /** Injeta projetos-semente ausentes (por id) uma única vez por versão de semente */
 function applyProjectSeed(projects: Project[], seedVersion: number | undefined): Project[] {
@@ -42,6 +44,14 @@ function applySalarySeed(
   ]
 }
 
+function applyCashSeed(
+  cash: CashBalance | undefined,
+  seedVersion: number | undefined,
+): CashBalance {
+  if (seedVersion !== undefined && seedVersion >= CASH_SEED_VERSION && cash) return cash
+  return seedCashBalance()
+}
+
 export function loadState(): FinanceState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -54,6 +64,7 @@ export function loadState(): FinanceState {
       categories: parsed.categories?.length ? parsed.categories : base.categories,
       salaries: applySalarySeed(parsed.salaries ?? base.salaries, parsed.seedVersion),
       projects: applyProjectSeed(parsed.projects ?? base.projects, parsed.seedVersion),
+      cashBalance: applyCashSeed(parsed.cashBalance, parsed.seedVersion),
       seedVersion: SEED_VERSION,
       wedding: {
         ...createWeddingState(),
