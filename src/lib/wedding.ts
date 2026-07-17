@@ -1,8 +1,8 @@
 import { uid } from './format'
 import type { WeddingFlexItem, WeddingState } from '../types/finance'
 
+/** Cronograma ativo: Jul–Dez (junho já foi pago e saiu da lista) */
 export const WEDDING_MONTHS = [
-  { key: '2026-06', label: 'Junho 2026', short: 'Jun', emoji: '💍' },
   { key: '2026-07', label: 'Julho 2026', short: 'Jul', emoji: '🎊' },
   { key: '2026-08', label: 'Agosto 2026', short: 'Ago', emoji: '🌺' },
   { key: '2026-09', label: 'Setembro 2026', short: 'Set', emoji: '🌙' },
@@ -33,7 +33,10 @@ export const DEFAULT_FLEX: WeddingFlexItem[] = [
   { id: 'mobilia', name: 'Mobília da Casa', amount: 12000, tag: 'casa' },
 ]
 
-/** Checkboxes já pagos em junho/2026 */
+/**
+ * Pagamentos de junho já liquidados (histórico).
+ * Fotógrafo 1ª parcela NÃO está aqui — foi remanejado para julho.
+ */
 export const JUNE_PAID_CHECKS: Record<string, boolean> = {
   'Jun::Salão (parcial R$ 500)': true,
   'Jun::Vestido (1/7)': true,
@@ -110,22 +113,30 @@ export interface MonthSchedule {
 }
 
 /**
- * Monta o cronograma Jun–Dez.
+ * Monta o cronograma Jul–Dez.
  * `monthlyBudgets` = sobra de cada mês (receitas − vida/cartão).
- * Se um único número for passado, replica nos 7 meses (comportamento original).
+ * Se um único número for passado, replica nos 6 meses.
  */
 export function buildWeddingSchedule(
   monthlyBudgets: number | number[],
   flexItems: WeddingFlexItem[],
-): { schedule: MonthSchedule[]; deficit: number; unpaid: { name: string; amount: number; remaining: number; tag: string }[]; totalRemaining: number } {
+): {
+  schedule: MonthSchedule[]
+  deficit: number
+  unpaid: { name: string; amount: number; remaining: number; tag: string }[]
+  totalRemaining: number
+} {
   const budgets = Array.isArray(monthlyBudgets)
-    ? WEDDING_MONTHS.map((_, i) => monthlyBudgets[i] ?? monthlyBudgets[monthlyBudgets.length - 1] ?? 0)
+    ? WEDDING_MONTHS.map(
+        (_, i) => monthlyBudgets[i] ?? monthlyBudgets[monthlyBudgets.length - 1] ?? 0,
+      )
     : WEDDING_MONTHS.map(() => monthlyBudgets)
 
+  const lastIdx = WEDDING_MONTHS.length - 1
+
   const sched: MonthSchedule[] = WEDDING_MONTHS.map((m, i) => {
-    const last = i === 6
-    const june = i === 0
-    const july = i === 1
+    const last = i === lastIdx
+    const july = i === 0
     const payments: SchedulePayment[] = []
     let rem = budgets[i]
     const add = (name: string, amount: number, tag: string) => {
@@ -133,30 +144,29 @@ export function buildWeddingSchedule(
       rem -= amount
     }
 
-    if (june) {
-      add('Salão (parcial R$ 500)', SALAO_JUNE_PAID, 'salão')
-    } else {
-      add(last ? 'Salão ✓ quitado' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
+    // Salão: jul–nov parcela cheia; dez última. Em jul também entra o resto de junho.
+    add(last ? 'Salão ✓ quitado' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
+    if (july) {
+      add('Salão (resto junho)', SALAO_JUNE_REST, 'salão')
     }
+
+    // Vestido: 1/7 já pago em junho → jul = 2/7 … dez = 7/7
+    const vestidoN = i + 2
     add(
-      last ? 'Vestido ✓ quitado (7/7)' : `Vestido (${i + 1}/7)`,
+      last ? 'Vestido ✓ quitado (7/7)' : `Vestido (${vestidoN}/7)`,
       last ? VESTIDO_LAST : VESTIDO_PM,
       'noiva',
     )
-    if (!june) {
-      add(last ? 'Dia da Noiva ✓ quitado' : 'Dia da Noiva', last ? DIA_LAST : DIA_PM, 'noiva')
-    }
-    if (june) {
-      add('Obra banheiro (1ª parcela)', 200, 'obra')
-      add('Fotógrafo – 1ª parcela', 1700, 'foto')
-      add('Presentes Padrinhos', 440, 'convites')
-      add('Presentes Damonsellies', 111, 'convites')
-    }
+
+    add(last ? 'Dia da Noiva ✓ quitado' : 'Dia da Noiva', last ? DIA_LAST : DIA_PM, 'noiva')
+
     if (july) {
-      add('Salão (resto junho)', SALAO_JUNE_REST, 'salão')
       add('Obra banheiro ✓ quitado', 600, 'obra')
+      // 1ª parcela veio de junho (única pendência); 2ª parcela deste mês
+      add('Fotógrafo – 1ª parcela', 1700, 'foto')
       add('Fotógrafo ✓ quitado (2ª/2)', 1700, 'foto')
     }
+
     if (last) {
       add('Pré-Wedding', 830, 'foto')
     }
@@ -196,7 +206,12 @@ export function buildWeddingSchedule(
 
   const unpaid = flex
     .filter((f) => f.paid < f.amount)
-    .map((f) => ({ name: f.name, amount: f.amount, remaining: f.amount - f.paid, tag: f.tag }))
+    .map((f) => ({
+      name: f.name,
+      amount: f.amount,
+      remaining: f.amount - f.paid,
+      tag: f.tag,
+    }))
   const deficit = unpaid.reduce((s, f) => s + f.remaining, 0)
 
   const fixedTotal = sched.reduce(

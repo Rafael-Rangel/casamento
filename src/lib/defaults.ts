@@ -14,7 +14,9 @@ export const SALARY_SEED_VERSION = 2
 export const CASH_SEED_VERSION = 3
 export const WEDDING_JUNE_SEED_VERSION = 4
 export const WEDDING_OBRA_SEED_VERSION = 5
-export const SEED_VERSION = WEDDING_OBRA_SEED_VERSION
+/** Junho sai do cronograma; fotógrafo 1ª parcela vai para julho */
+export const WEDDING_DROP_JUNE_SEED_VERSION = 6
+export const SEED_VERSION = WEDDING_DROP_JUNE_SEED_VERSION
 
 export function seedCashBalance(): CashBalance {
   return {

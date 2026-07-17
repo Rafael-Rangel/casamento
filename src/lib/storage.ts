@@ -8,7 +8,7 @@ import {
   seedSalaries,
   SEED_VERSION,
   STORAGE_KEY,
-  WEDDING_OBRA_SEED_VERSION,
+  WEDDING_DROP_JUNE_SEED_VERSION,
 } from './defaults'
 import { createWeddingState, JUNE_PAID_CHECKS } from './wedding'
 import type {
@@ -67,7 +67,7 @@ function applyWeddingJuneSeed(
   const base = createWeddingState()
   if (!wedding) return base
 
-  if (seedVersion !== undefined && seedVersion >= WEDDING_OBRA_SEED_VERSION) {
+  if (seedVersion !== undefined && seedVersion >= WEDDING_DROP_JUNE_SEED_VERSION) {
     return {
       ...base,
       ...wedding,
@@ -83,14 +83,16 @@ function applyWeddingJuneSeed(
     ...base.alreadyPaid.filter((i) => !paidNames.has(i.name)),
   ]
 
-  // Remove checkbox antigo do salão cheio de junho, se existir
-  const checked = { ...(wedding.checked || {}) }
+  // Limpa checkboxes de junho e do fotógrafo antigo (agora em julho)
+  const checked = { ...(wedding.checked || {}), ...JUNE_PAID_CHECKS }
   delete checked['Jun::Salão de Festas']
+  delete checked['Jun::Fotógrafo – 1ª parcela']
+  delete checked['Jul::Fotógrafo ✓ quitado (2ª/2)']
 
   return {
     ...base,
     ...wedding,
-    checked: { ...JUNE_PAID_CHECKS, ...checked },
+    checked,
     alreadyPaid: mergedPaid,
     totals: {
       ...base.totals,
@@ -98,6 +100,7 @@ function applyWeddingJuneSeed(
       salaRemaining: base.totals.salaRemaining,
       vestidoTotal: base.totals.vestidoTotal,
       obraMaoDeObra: base.totals.obraMaoDeObra,
+      fotografo: base.totals.fotografo,
     },
     flexItems: wedding.flexItems?.length ? wedding.flexItems : base.flexItems,
   }

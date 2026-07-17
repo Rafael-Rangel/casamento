@@ -253,10 +253,9 @@ export function buildProjections(
   })
 }
 
-/** Sobra mensal Jun–Dez/2026 para alimentar o cronograma do casamento */
+/** Sobra mensal Jul–Dez/2026 para alimentar o cronograma do casamento */
 export function weddingMonthBudgets(state: FinanceState, today: Date = new Date()): number[] {
   const keys = [
-    '2026-06',
     '2026-07',
     '2026-08',
     '2026-09',
@@ -264,7 +263,7 @@ export function weddingMonthBudgets(state: FinanceState, today: Date = new Date(
     '2026-11',
     '2026-12',
   ]
-  const all = buildProjections(state, parseISO('2026-06-01')).filter((p) =>
+  const all = buildProjections(state, parseISO('2026-07-01')).filter((p) =>
     keys.includes(p.key),
   )
   const byKey = Object.fromEntries(all.map((p) => [p.key, p.weddingBudget]))

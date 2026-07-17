@@ -1,21 +1,25 @@
 import { useMemo, useState } from 'react'
 import { useFinance } from '../context/FinanceContext'
+import { cashflowSnapshot } from '../lib/agenda'
+import { buildMonthPlan } from '../lib/monthPlan'
 import { weddingMonthBudgets } from '../lib/projections'
 import { buildWeddingSchedule, TAG_COLORS, TAG_LABEL } from '../lib/wedding'
 import { fmt } from '../lib/format'
-import { Button, Field, Input, Money } from './ui'
+import { Money } from './ui'
 
 export function WeddingPage() {
-  const { state, toggleWeddingCheck, isWeddingChecked, setCashBalance } = useFinance()
+  const { state, toggleWeddingCheck, isWeddingChecked } = useFinance()
   const [tab, setTab] = useState<'cronograma' | 'resumo'>('cronograma')
   const [activeMonth, setActiveMonth] = useState(0)
   const [showDeficit, setShowDeficit] = useState(false)
-  const [cashDraft, setCashDraft] = useState(String(state.cashBalance?.amount ?? ''))
 
   const budgets = useMemo(() => weddingMonthBudgets(state), [state])
   const avgBudget =
     budgets.length > 0 ? budgets.reduce((a, b) => a + b, 0) / budgets.length : 0
-  const cash = state.cashBalance?.amount ?? 0
+  const monthCount = budgets.length
+
+  const plan = useMemo(() => buildMonthPlan(state), [state])
+  const snap = useMemo(() => cashflowSnapshot(state, new Date(), 0), [state])
 
   const { schedule, deficit, unpaid, totalRemaining } = useMemo(
     () => buildWeddingSchedule(budgets, state.wedding.flexItems),
@@ -45,16 +49,7 @@ export function WeddingPage() {
     ['Obra banheiro – mão de obra (restante)', state.wedding.totals.obraMaoDeObra],
   ] as [string, number][]
 
-  const saveCash = () => {
-    const amount = Number(String(cashDraft).replace(',', '.')) || 0
-    setCashBalance({
-      amount,
-      asOf: state.cashBalance?.asOf || '2026-07-17',
-      notes:
-        state.cashBalance?.notes ||
-        'Saldo disponível após receitas e despesas pessoais',
-    })
-  }
+  const julyBudget = budgets[0] ?? 0
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
@@ -64,52 +59,64 @@ export function WeddingPage() {
           Casamento {state.wedding.dateLabel}
         </h1>
         <p className="mt-1 text-xs text-[var(--ink-muted)]">
-          Junho → Dezembro · 7 meses · sobra média {fmt(avgBudget, true)}/mês
+          Julho → Dezembro · {monthCount} meses · sobra média {fmt(avgBudget, true)}/mês
         </p>
       </header>
 
+      {/* Cálculos automáticos — sem edição */}
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <p className="mb-1 text-sm font-bold text-[var(--ink)]">Saldo disponível hoje</p>
+        <p className="mb-1 text-sm font-bold text-[var(--ink)]">Situação deste mês</p>
         <p className="mb-3 text-xs text-[var(--ink-muted)]">
-          O que sobrou na conta em {state.cashBalance?.asOf || '2026-07-17'} — entra no
-          orçamento de julho do casamento.
+          Calculado a partir dos recebimentos e pagamentos — não é editável.
         </p>
-        <div className="flex items-end gap-2">
-          <Field label="Valor em caixa">
-            <Input
-              type="number"
-              step="0.01"
-              min={0}
-              value={cashDraft}
-              onChange={(e) => setCashDraft(e.target.value)}
-            />
-          </Field>
-          <Button onClick={saveCash} className="mb-0.5 shrink-0">
-            Salvar
-          </Button>
-        </div>
-        <div className="mt-3 flex justify-between text-sm font-bold">
-          <span>Registrado</span>
-          <Money value={cash} />
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-[var(--ink-muted)]">Recebemos no mês</span>
+            <Money value={plan.incomeTotal} />
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--ink-muted)]">Já recebido até hoje</span>
+            <Money value={snap.receivedUntilToday} />
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--ink-muted)]">Ainda a receber</span>
+            <Money value={plan.incomePending} />
+          </div>
+          <div className="flex justify-between border-t border-[var(--line)] pt-2">
+            <span className="text-[var(--ink-muted)]">Gastos do casamento (mês)</span>
+            <Money value={-plan.weddingTotal} />
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--ink-muted)]">Já pago do casamento</span>
+            <Money value={plan.weddingPaid} />
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--ink-muted)]">Ainda falta do casamento</span>
+            <Money value={-plan.weddingPending} />
+          </div>
+          <div className="flex justify-between border-t border-[var(--line)] pt-2 font-bold">
+            <span>Sobra p/ vida e cartão</span>
+            <Money value={plan.leftoverForLife} />
+          </div>
         </div>
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <p className="mb-2 text-sm font-bold text-[var(--ink)]">Sobra para o casamento</p>
+        <p className="mb-2 text-sm font-bold text-[var(--ink)]">Orçamento do casamento</p>
         <p className="text-xs text-[var(--ink-muted)]">
-          Em julho: saldo em caixa + o que ainda vai cair (com data) − o que ainda falta
-          pagar. Ex.: Power Volts só conta no dia 20.
+          Em julho: caixa de referência + o que ainda cai − o que ainda falta pagar de
+          vida/cartão. Nos meses seguintes: receita − vida.
         </p>
         <div className="mt-3 flex justify-between text-sm">
-          <span className="text-[var(--ink-muted)]">Saldo em caixa (17/07)</span>
-          <Money value={cash} />
+          <span className="text-[var(--ink-muted)]">Disponível em julho</span>
+          <Money value={julyBudget} />
         </div>
         <div className="mt-1 flex justify-between text-sm">
-          <span className="text-[var(--ink-muted)]">Média mensal (com caixa)</span>
+          <span className="text-[var(--ink-muted)]">Média mensal</span>
           <Money value={avgBudget} />
         </div>
         <div className="mt-1 flex justify-between text-sm font-bold">
-          <span>Total disponível 7 meses</span>
+          <span>Total disponível {monthCount} meses</span>
           <Money value={totalSavings} />
         </div>
       </div>
@@ -120,7 +127,7 @@ export function WeddingPage() {
           <p className="text-base font-bold text-[var(--positive)]">{fmt(avgBudget, true)}</p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
-          <p className="text-xs text-[var(--ink-muted)]">Total 7 meses</p>
+          <p className="text-xs text-[var(--ink-muted)]">Total {monthCount} meses</p>
           <p className="text-base font-bold text-[var(--positive)]">{fmt(totalSavings, true)}</p>
         </div>
         <button
@@ -151,8 +158,8 @@ export function WeddingPage() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="font-bold text-amber-800">Déficit = o buraco</p>
           <p className="mt-1 text-sm text-amber-800/80">
-            Diferença entre o que falta pagar do casamento e o que a sobra dos 7 meses cobre
-            nos itens flexíveis.
+            Diferença entre o que falta pagar do casamento e o que a sobra dos {monthCount}{' '}
+            meses cobre nos itens flexíveis.
           </p>
           <div className="mt-3 space-y-1 rounded-xl border border-amber-100 bg-white p-3 text-sm">
             <div className="flex justify-between">
@@ -160,7 +167,9 @@ export function WeddingPage() {
               <span className="font-bold">{fmt(totalRemaining, true)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[var(--ink-muted)]">Sobra acumulada (7 meses)</span>
+              <span className="text-[var(--ink-muted)]">
+                Sobra acumulada ({monthCount} meses)
+              </span>
               <span className="font-bold text-[var(--positive)]">
                 {fmt(totalSavings, true)}
               </span>
@@ -359,7 +368,7 @@ export function WeddingPage() {
               />
             </div>
             <div className="mt-1 flex justify-between text-xs text-[var(--ink-faint)]">
-              <span>Jun</span>
+              <span>Jul</span>
               <span>
                 {totalSavings > 0
                   ? Math.round(((accumulated[activeMonth] || 0) / totalSavings) * 100)
@@ -375,7 +384,7 @@ export function WeddingPage() {
       {tab === 'resumo' && (
         <div className="space-y-3">
           <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <p className="mb-3 font-bold text-[var(--ink)]">Já pago</p>
+            <p className="mb-3 font-bold text-[var(--ink)]">Já pago (histórico)</p>
             {state.wedding.alreadyPaid.map((item) => (
               <div key={item.name} className="flex justify-between py-1 text-sm">
                 <span className="text-[var(--ink-muted)]">{item.name}</span>
