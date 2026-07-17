@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { useFinance } from '../context/FinanceContext'
 import { buildMonthPlan, type MonthObligation } from '../lib/monthPlan'
 import { fmt } from '../lib/format'
@@ -11,6 +10,11 @@ function capitalize(s: string) {
 }
 
 function ItemRow({ item }: { item: MonthObligation }) {
+  const badge = item.paid
+    ? 'Na data'
+    : item.direction === 'in'
+      ? 'A receber'
+      : 'A pagar'
   return (
     <li className="flex items-start justify-between gap-3 text-sm">
       <div className="min-w-0">
@@ -24,9 +28,13 @@ function ItemRow({ item }: { item: MonthObligation }) {
                   : 'bg-amber-100 text-amber-800'
             }`}
           >
-            {item.paid ? 'Feito' : item.direction === 'in' ? 'A receber' : 'A pagar'}
+            {badge}
           </span>
-          <span className={`font-semibold ${item.paid ? 'text-[var(--ink-muted)] line-through' : 'text-[var(--ink)]'}`}>
+          <span
+            className={`font-semibold ${
+              item.paid ? 'text-[var(--ink-muted)] line-through' : 'text-[var(--ink)]'
+            }`}
+          >
             {item.label}
           </span>
         </div>
@@ -46,44 +54,41 @@ export function MeuMesPage() {
   const { state } = useFinance()
   const today = useMemo(() => new Date(), [])
   const plan = useMemo(() => buildMonthPlan(state, today), [state, today])
-  const [showPaid, setShowPaid] = useState(false)
-
-  const upcomingDays = plan.daily.filter((d) => {
-    if (d.isPast && !d.isToday) {
-      const hasUnpaid = [...d.receive, ...d.pay].some((i) => !i.paid)
-      return showPaid || hasUnpaid
-    }
-    return true
-  })
 
   const payQueue = [
     ...plan.lifeItems.filter((i) => !i.paid),
     ...plan.weddingItems.filter((i) => !i.paid),
-  ].sort((a, b) => a.date.localeCompare(b.date))
+  ]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 8)
 
   const receiveQueue = plan.incomeItems
     .filter((i) => !i.paid)
     .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 8)
+
+  const nextDays = plan.daily
+    .filter((d) => d.isToday || d.isFuture)
+    .filter((d) => d.receive.length > 0 || d.pay.length > 0)
+    .slice(0, 5)
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <header>
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-          Seu mês em uma tela
+          Visão do mês
         </p>
         <h1 className="font-display text-3xl font-extrabold text-[var(--ink)]">
           {capitalize(plan.monthLabel)}
         </h1>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Hoje {format(today, "d 'de' MMMM", { locale: ptBR })} · projetos entram nas datas
-          certas · você vê o que pagar e o que sobra pra você.
+          Recebemos (salários + projetos) − gastos do casamento = sobra para vida e cartão.
         </p>
       </header>
 
-      {/* Resposta principal: sobra para vida e cartão */}
       <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--ink)] p-5 text-white shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-          Depois do casamento, sobra para vida e cartão
+          Sobra para vida e cartão
         </p>
         <p
           className={`mt-2 font-display text-4xl font-extrabold tabular-nums ${
@@ -94,18 +99,24 @@ export function MeuMesPage() {
         </p>
         <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-white/10 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebemos no mês</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebemos</p>
             <p className="font-bold text-[#7cdba8]">{fmt(plan.incomeTotal)}</p>
+            <p className="mt-0.5 text-[10px] text-white/45">
+              Já {fmt(plan.incomeReceived)} · falta {fmt(plan.incomePending)}
+            </p>
           </div>
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-white/50">
-              − Gastos do casamento
+              − Casamento do mês
             </p>
             <p className="font-bold text-[#f2b6c8]">{fmt(plan.weddingTotal)}</p>
+            <p className="mt-0.5 text-[10px] text-white/45">
+              Falta pagar {fmt(plan.weddingPending)}
+            </p>
           </div>
         </div>
-        <div className="mt-3 rounded-xl bg-white/5 px-3 py-2 text-xs text-white/70">
-          Depois de pagar também vida & cartão já lançados ({fmt(plan.lifeTotal)}), sobra livre:{' '}
+        <p className="mt-3 text-xs text-white/55">
+          Vida e cartão já lançados: {fmt(plan.lifeTotal)} · depois disso sobra livre{' '}
           <span
             className={`font-bold ${
               plan.leftoverAfterLife >= 0 ? 'text-[#7cdba8]' : 'text-[#f2b6c8]'
@@ -113,43 +124,15 @@ export function MeuMesPage() {
           >
             {fmt(plan.leftoverAfterLife)}
           </span>
-        </div>
+        </p>
       </section>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Recebemos no mês
-          </p>
-          <Money value={plan.incomeTotal} className="mt-1 block text-xl" />
-          <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Já: {fmt(plan.incomeReceived)} · Falta: {fmt(plan.incomePending)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Gastos do casamento
-          </p>
-          <Money value={-plan.weddingTotal} className="mt-1 block text-xl" />
-          <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Falta pagar: {fmt(plan.weddingPending)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Sobra p/ vida e cartão
-          </p>
-          <Money value={plan.leftoverForLife} className="mt-1 block text-xl" />
-          <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Vida já lançada: {fmt(plan.lifeTotal)}
-          </p>
-        </div>
-      </div>
-
-      {/* Gastos do casamento por categoria */}
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold">Casamento por categoria</h2>
+          <div>
+            <h2 className="font-display text-lg font-bold">Casamento por categoria</h2>
+            <p className="text-xs text-[var(--ink-muted)]">Onde o dinheiro do mês vai</p>
+          </div>
           <Money value={-plan.weddingTotal} />
         </div>
         {plan.weddingByCategory.length === 0 ? (
@@ -186,7 +169,7 @@ export function MeuMesPage() {
         <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <h2 className="font-display text-lg font-bold">Ainda vai entrar</h2>
           <p className="mb-3 text-xs text-[var(--ink-muted)]">
-            Só conta na data (ex.: Power Volts dia 20).
+            Conta só na data (salário, parcela, mensalidade 2/3).
           </p>
           {receiveQueue.length === 0 ? (
             <p className="text-sm text-[var(--ink-muted)]">Nada pendente de entrada este mês.</p>
@@ -200,12 +183,12 @@ export function MeuMesPage() {
         </section>
 
         <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <h2 className="font-display text-lg font-bold">O que você deve ir pagando</h2>
+          <h2 className="font-display text-lg font-bold">Próximos a pagar</h2>
           <p className="mb-3 text-xs text-[var(--ink-muted)]">
-            Vida/cartão + casamento, na ordem sugerida por dia.
+            Casamento + vida/cartão, na ordem do mês.
           </p>
           {payQueue.length === 0 ? (
-            <p className="text-sm text-[var(--positive)]">Tudo do mês já está quitado.</p>
+            <p className="text-sm text-[var(--positive)]">Tudo do mês já passou da data.</p>
           ) : (
             <ul className="space-y-2">
               {payQueue.map((i) => (
@@ -217,82 +200,58 @@ export function MeuMesPage() {
       </div>
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="font-display text-xl font-bold">Agenda do mês</h2>
-            <p className="text-xs text-[var(--ink-muted)]">
-              Dia a dia: o que recebe e o que deve pagar.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowPaid((v) => !v)}
-            className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--ink-muted)]"
-          >
-            {showPaid ? 'Ocultar dias passados' : 'Mostrar dias passados'}
-          </button>
+        <div>
+          <h2 className="font-display text-xl font-bold">Próximos dias</h2>
+          <p className="text-xs text-[var(--ink-muted)]">
+            Resumo rápido · dia a dia completo na aba Agenda.
+          </p>
         </div>
 
-        {upcomingDays.map((day) => (
-          <div
-            key={day.date}
-            className={`rounded-2xl border p-4 ${
-              day.isToday
-                ? 'border-[var(--rose)] bg-[var(--accent-soft)]/50'
-                : 'border-[var(--line)] bg-[var(--surface)]'
-            }`}
-          >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-display text-base font-bold capitalize">
-                    {capitalize(day.weekday)}
-                  </h3>
-                  {day.isToday && (
-                    <span className="rounded-full bg-[var(--rose)] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-                      Hoje
-                    </span>
+        {nextDays.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-6 text-center text-sm text-[var(--ink-muted)]">
+            Sem lançamentos futuros neste mês.
+          </p>
+        ) : (
+          nextDays.map((day) => (
+            <div
+              key={day.date}
+              className={`rounded-2xl border p-4 ${
+                day.isToday
+                  ? 'border-[var(--rose)] bg-[var(--accent-soft)]/50'
+                  : 'border-[var(--line)] bg-[var(--surface)]'
+              }`}
+            >
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-base font-bold capitalize">
+                      {capitalize(day.weekday)}
+                    </h3>
+                    {day.isToday && (
+                      <span className="rounded-full bg-[var(--rose)] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                        Hoje
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs capitalize text-[var(--ink-muted)]">{day.label}</p>
+                </div>
+                <div className="text-right text-xs font-semibold">
+                  {day.receiveTotal > 0 && (
+                    <p className="text-[var(--positive)]">+ {fmt(day.receiveTotal)}</p>
+                  )}
+                  {day.payTotal > 0 && (
+                    <p className="text-[var(--negative)]">− {fmt(day.payTotal)}</p>
                   )}
                 </div>
-                <p className="text-xs capitalize text-[var(--ink-muted)]">{day.label}</p>
               </div>
-              <div className="text-right text-xs font-semibold">
-                {day.receiveTotal > 0 && (
-                  <p className="text-[var(--positive)]">+ {fmt(day.receiveTotal)}</p>
-                )}
-                {day.payTotal > 0 && (
-                  <p className="text-[var(--negative)]">− {fmt(day.payTotal)}</p>
-                )}
-              </div>
+              <ul className="space-y-1.5">
+                {[...day.receive, ...day.pay].map((i) => (
+                  <ItemRow key={i.id} item={i} />
+                ))}
+              </ul>
             </div>
-
-            {day.receive.length > 0 && (
-              <div className="mb-2">
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--positive)]">
-                  Receber
-                </p>
-                <ul className="space-y-1.5">
-                  {day.receive.map((i) => (
-                    <ItemRow key={i.id} item={i} />
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {day.pay.length > 0 && (
-              <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--negative)]">
-                  Pagar
-                </p>
-                <ul className="space-y-1.5">
-                  {day.pay.map((i) => (
-                    <ItemRow key={i.id} item={i} />
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        ))}
+          ))
+        )}
       </section>
     </div>
   )

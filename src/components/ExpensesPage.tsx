@@ -68,10 +68,9 @@ export function ExpensesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Despesas da vida</h1>
+          <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Vida e Cartão</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Cartão, moradia, alimentação e o resto do dia a dia — tudo isso reduz a sobra
-            disponível para o casamento.
+            Gastos do dia a dia e cartão — pagos com o que sobra depois do casamento do mês.
           </p>
         </div>
         <div className="flex gap-2">
@@ -186,7 +185,7 @@ export function ExpensesPage() {
           </div>
           <Field
             label="Impacto"
-            hint="Vida/cartão reduz a sobra do casamento. Extra de casamento não entra no cronograma automático."
+            hint="Vida/cartão sai da sobra livre. Extra de casamento fica fora do cronograma automático da aba Casamento."
           >
             <Select
               value={form.purpose || 'life'}

@@ -144,27 +144,27 @@ export function buildWeddingSchedule(
       rem -= amount
     }
 
-    // Salão: jul–nov parcela cheia; dez última. Em jul também entra o resto de junho.
-    add(last ? 'Salão ✓ quitado' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
+    // Salão: jul–nov parcela cheia; dez última. Em jul também entra o complemento de junho.
+    add(last ? 'Salão (última parcela)' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
     if (july) {
-      add('Salão (resto junho)', SALAO_JUNE_REST, 'salão')
+      add('Salão (complemento)', SALAO_JUNE_REST, 'salão')
     }
 
     // Vestido: 1/7 já pago em junho → jul = 2/7 … dez = 7/7
     const vestidoN = i + 2
     add(
-      last ? 'Vestido ✓ quitado (7/7)' : `Vestido (${vestidoN}/7)`,
+      last ? 'Vestido (7/7 · última)' : `Vestido (${vestidoN}/7)`,
       last ? VESTIDO_LAST : VESTIDO_PM,
       'noiva',
     )
 
-    add(last ? 'Dia da Noiva ✓ quitado' : 'Dia da Noiva', last ? DIA_LAST : DIA_PM, 'noiva')
+    add(last ? 'Dia da Noiva (última)' : 'Dia da Noiva', last ? DIA_LAST : DIA_PM, 'noiva')
 
     if (july) {
-      add('Obra banheiro ✓ quitado', 600, 'obra')
+      add('Obra banheiro (restante)', 600, 'obra')
       // 1ª parcela veio de junho (única pendência); 2ª parcela deste mês
       add('Fotógrafo – 1ª parcela', 1700, 'foto')
-      add('Fotógrafo ✓ quitado (2ª/2)', 1700, 'foto')
+      add('Fotógrafo – 2ª parcela', 1700, 'foto')
     }
 
     if (last) {

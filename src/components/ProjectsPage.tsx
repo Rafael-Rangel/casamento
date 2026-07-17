@@ -110,8 +110,8 @@ export function ProjectsPage() {
           </p>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Projetos</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Implementação conta 100% para você. Mensalidade é dividida em 3 — você e sua esposa
-            ficam com 2/3 nas projeções.
+            Implementação 100% sua · mensalidade 2/3 (você + esposa). Tudo entra em
+            “Recebemos” nas datas das parcelas.
           </p>
         </div>
         <Button onClick={create}>

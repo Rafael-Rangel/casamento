@@ -49,7 +49,7 @@ export function SalariesPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Salários</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Rendas fixas mensais, como Gênesis. Entram automaticamente em todos os meses ativos.
+            Entram em “Recebemos” do mês (Meu mês) no dia de recebimento.
           </p>
         </div>
         <Button onClick={create}>

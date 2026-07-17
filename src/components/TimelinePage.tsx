@@ -20,7 +20,7 @@ const KIND_LABEL: Record<MonthEntry['kind'], string> = {
   salary: 'Salário',
   project_payment: 'Projeto',
   project_monthly: 'Mensalidade',
-  other_income: 'Outra receita',
+  other_income: 'Receita',
   expense: 'Gasto',
 }
 
@@ -48,7 +48,7 @@ export function TimelinePage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Linha do tempo</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Todos os meses futuros com entradas, saídas e saldo projetado.
+            Visão mensal: recebemos, vida/cartão e quanto sobra para o plano do casamento.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-[var(--ink-muted)]">
@@ -90,23 +90,23 @@ export function TimelinePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-[var(--ink-muted)]">Saldo do mês</p>
-                    <Money value={m.balance} className="text-lg" />
+                    <p className="text-xs text-[var(--ink-muted)]">Orçamento p/ casamento</p>
+                    <Money value={m.weddingBudget} className="text-lg" />
                   </div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
                   <div className="rounded-xl bg-[var(--surface-2)] p-2">
-                    <p className="text-[var(--ink-muted)]">Recebido</p>
+                    <p className="text-[var(--ink-muted)]">Recebemos</p>
                     <Money value={m.totalIncome} className="text-sm" />
                   </div>
                   <div className="rounded-xl bg-[var(--surface-2)] p-2">
-                    <p className="text-[var(--ink-muted)]">Gasto</p>
-                    <Money value={-m.totalExpense} className="text-sm" />
+                    <p className="text-[var(--ink-muted)]">Vida/cartão</p>
+                    <Money value={-m.lifeExpense} className="text-sm" />
                   </div>
                   <div className="rounded-xl bg-[var(--surface-2)] p-2">
-                    <p className="text-[var(--ink-muted)]">Acumulado</p>
-                    <Money value={m.cumulativeBalance} className="text-sm" />
+                    <p className="text-[var(--ink-muted)]">Saldo do mês</p>
+                    <Money value={m.balance} className="text-sm" />
                   </div>
                 </div>
               </button>
@@ -182,8 +182,8 @@ export function TimelinePage() {
                     <Money value={m.balance} />
                   </div>
                   <p className="text-xs text-[var(--ink-muted)]">
-                    Quanto ainda posso gastar:{' '}
-                    <Money value={Math.max(0, m.balance)} className="text-xs" />
+                    Orçamento disponível para o cronograma do casamento:{' '}
+                    <Money value={Math.max(0, m.weddingBudget)} className="text-xs" />
                   </p>
                 </div>
               )}

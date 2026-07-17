@@ -8,6 +8,7 @@ import {
   cashflowSnapshot,
   type AgendaEvent,
 } from '../lib/agenda'
+import { buildMonthPlan } from '../lib/monthPlan'
 import { fmt } from '../lib/format'
 import { Money } from './ui'
 
@@ -15,14 +16,22 @@ const KIND_LABEL: Record<AgendaEvent['kind'], string> = {
   salary: 'Salário',
   project_payment: 'Projeto',
   project_monthly: 'Mensalidade',
-  other_income: 'Outra receita',
-  expense: 'Despesa',
+  other_income: 'Receita',
+  expense: 'Vida/cartão',
+}
+
+function monthsUntilWeddingEnd(today: Date) {
+  const end = new Date(2026, 11, 1) // dez/2026
+  const months =
+    (end.getFullYear() - today.getFullYear()) * 12 + (end.getMonth() - today.getMonth())
+  return Math.max(0, months)
 }
 
 export function AgendaPage() {
   const { state } = useFinance()
   const today = useMemo(() => new Date(), [])
-  const [monthsAhead, setMonthsAhead] = useState(2)
+  const untilDec = monthsUntilWeddingEnd(today)
+  const [monthsAhead, setMonthsAhead] = useState(Math.min(2, untilDec || 2))
   const [filter, setFilter] = useState<'all' | 'in' | 'out' | 'upcoming'>('upcoming')
 
   const from = startOfMonth(today)
@@ -33,7 +42,11 @@ export function AgendaPage() {
     [state, from, to, today],
   )
 
-  const snap = useMemo(() => cashflowSnapshot(state, today, monthsAhead), [state, today, monthsAhead])
+  const snap = useMemo(
+    () => cashflowSnapshot(state, today, monthsAhead),
+    [state, today, monthsAhead],
+  )
+  const plan = useMemo(() => buildMonthPlan(state, today), [state, today])
 
   const visibleDays = days.filter((d) => {
     if (filter === 'upcoming') return d.isToday || d.isFuture
@@ -42,21 +55,17 @@ export function AgendaPage() {
     return true
   })
 
-  const cash = state.cashBalance?.amount ?? 0
-  const projectedCash =
-    cash + snap.pendingIncome - snap.pendingExpense
-
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-            Atualizado hoje
+            Dia a dia
           </p>
-          <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Agenda diária</h1>
+          <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Agenda</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })} · só conta o que já venceu ou
-            o que ainda vai cair na data certa (ex.: Power Volts dia 20).
+            {format(today, "EEEE, d 'de' MMMM", { locale: ptBR })} · o que cai e o que pagar em
+            cada data.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-[var(--ink-muted)]">
@@ -66,9 +75,10 @@ export function AgendaPage() {
             onChange={(e) => setMonthsAhead(Number(e.target.value))}
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)]"
           >
+            <option value={0}>Só este mês</option>
             <option value={1}>Este + 1 mês</option>
             <option value={2}>Este + 2 meses</option>
-            <option value={5}>Até dezembro</option>
+            {untilDec > 2 && <option value={untilDec}>Até dezembro</option>}
           </select>
         </label>
       </div>
@@ -76,38 +86,38 @@ export function AgendaPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Saldo em caixa hoje
+            Recebemos (mês)
           </p>
-          <Money value={cash} className="mt-1 block text-2xl" />
+          <Money value={plan.incomeTotal} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Ref. {state.cashBalance?.asOf || '—'}
+            Já {fmt(plan.incomeReceived)} · falta {fmt(plan.incomePending)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Já recebido (mês)
+            Casamento a pagar
           </p>
-          <Money value={snap.receivedUntilToday} className="mt-1 block text-2xl" />
+          <Money value={-plan.weddingPending} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Até {format(today, 'dd/MM')} · ainda falta {fmt(snap.pendingIncome)}
+            Total do mês {fmt(plan.weddingTotal)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Ainda a receber
+            Vida/cartão a pagar
           </p>
-          <Money value={snap.pendingIncome} className="mt-1 block text-2xl" />
+          <Money value={-plan.lifePending} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Inclui parcelas e mensalidades com data futura
+            Já lançado no mês {fmt(plan.lifeTotal)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Caixa projetado
+            Sobra p/ vida e cartão
           </p>
-          <Money value={projectedCash} className="mt-1 block text-2xl" />
+          <Money value={plan.leftoverForLife} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Caixa + a receber − a pagar no horizonte
+            Recebemos − casamento do mês
           </p>
         </div>
       </div>
@@ -135,7 +145,7 @@ export function AgendaPage() {
           )}
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <h3 className="mb-3 font-display text-lg font-bold">Próximos pagamentos</h3>
+          <h3 className="mb-3 font-display text-lg font-bold">Próximos pagamentos (vida)</h3>
           {snap.nextExpenses.length === 0 ? (
             <p className="text-sm text-[var(--ink-muted)]">Nenhuma despesa futura no horizonte.</p>
           ) : (
@@ -198,6 +208,17 @@ export function AgendaPage() {
 
           if (events.length === 0 && !day.isToday) return null
 
+          const futureBadge =
+            day.isFuture && events.some((e) => e.direction === 'in') && events.some((e) => e.direction === 'out')
+              ? 'Entradas e saídas'
+              : day.isFuture && events.some((e) => e.direction === 'in')
+                ? 'A receber'
+                : day.isFuture && events.some((e) => e.direction === 'out')
+                  ? 'A pagar'
+                  : day.isFuture
+                    ? 'Futuro'
+                    : null
+
           return (
             <section
               key={day.date}
@@ -223,9 +244,9 @@ export function AgendaPage() {
                         Já passou
                       </span>
                     )}
-                    {day.isFuture && (
+                    {futureBadge && (
                       <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                        A receber/pagar
+                        {futureBadge}
                       </span>
                     )}
                   </div>
@@ -237,9 +258,6 @@ export function AgendaPage() {
                   )}
                   {day.totalOut > 0 && (
                     <p className="font-semibold text-[var(--negative)]">− {fmt(day.totalOut)}</p>
-                  )}
-                  {events.length > 0 && (
-                    <p className="mt-0.5 font-bold text-[var(--ink)]">Líquido {fmt(day.net)}</p>
                   )}
                 </div>
               </div>

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   CalendarRange,
-  LayoutDashboard,
   Briefcase,
   Receipt,
   Wallet,
@@ -29,14 +28,14 @@ type Tab =
   | 'expenses'
   | 'timeline'
 
-const NAV: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'meumes', label: 'Meu mês', icon: Home },
-  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
-  { id: 'wedding', label: 'Casamento', icon: Heart },
-  { id: 'projects', label: 'Projetos', icon: Briefcase },
-  { id: 'salaries', label: 'Salários', icon: Wallet },
-  { id: 'expenses', label: 'Vida e Cartão', icon: Receipt },
-  { id: 'timeline', label: 'Linha do tempo', icon: CalendarRange },
+const NAV: { id: Tab; label: string; short: string; icon: typeof Home }[] = [
+  { id: 'meumes', label: 'Meu mês', short: 'Mês', icon: Home },
+  { id: 'agenda', label: 'Agenda', short: 'Agenda', icon: CalendarDays },
+  { id: 'wedding', label: 'Casamento', short: 'Casório', icon: Heart },
+  { id: 'projects', label: 'Projetos', short: 'Projetos', icon: Briefcase },
+  { id: 'salaries', label: 'Salários', short: 'Salários', icon: Wallet },
+  { id: 'expenses', label: 'Vida e Cartão', short: 'Vida', icon: Receipt },
+  { id: 'timeline', label: 'Linha do tempo', short: 'Tempo', icon: CalendarRange },
 ]
 
 function Shell() {
@@ -52,7 +51,7 @@ function Shell() {
               Casamento
             </p>
             <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              Entra · paga · sobra pra você
+              Recebe · casamento · sobra pra viver
             </p>
           </div>
           <nav className="space-y-1">
@@ -109,7 +108,7 @@ function Shell() {
               }`}
             >
               <item.icon size={15} />
-              <span className="truncate">{item.label.split(' ')[0]}</span>
+              <span className="truncate">{item.short}</span>
             </button>
           ))}
         </div>
