@@ -5,34 +5,29 @@ import {
   Briefcase,
   Receipt,
   Wallet,
-  CircleDollarSign,
   Heart,
   CalendarDays,
   Home,
   RotateCcw,
 } from 'lucide-react'
 import { FinanceProvider, useFinance } from './context/FinanceContext'
-import { Dashboard } from './components/Dashboard'
 import { WeddingPage } from './components/WeddingPage'
 import { AgendaPage } from './components/AgendaPage'
 import { MeuMesPage } from './components/MeuMesPage'
 import { SalariesPage } from './components/SalariesPage'
 import { ProjectsPage } from './components/ProjectsPage'
 import { ExpensesPage } from './components/ExpensesPage'
-import { OtherIncomePage } from './components/OtherIncomePage'
 import { TimelinePage } from './components/TimelinePage'
 import { Button } from './components/ui'
 
 type Tab =
   | 'meumes'
-  | 'wedding'
   | 'agenda'
-  | 'dashboard'
-  | 'timeline'
-  | 'salaries'
+  | 'wedding'
   | 'projects'
+  | 'salaries'
   | 'expenses'
-  | 'other'
+  | 'timeline'
 
 const NAV: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'meumes', label: 'Meu mês', icon: Home },
@@ -40,10 +35,8 @@ const NAV: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'wedding', label: 'Casamento', icon: Heart },
   { id: 'projects', label: 'Projetos', icon: Briefcase },
   { id: 'salaries', label: 'Salários', icon: Wallet },
-  { id: 'expenses', label: 'Vida & cartão', icon: Receipt },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'expenses', label: 'Vida e Cartão', icon: Receipt },
   { id: 'timeline', label: 'Linha do tempo', icon: CalendarRange },
-  { id: 'other', label: 'Outras receitas', icon: CircleDollarSign },
 ]
 
 function Shell() {
@@ -96,17 +89,15 @@ function Shell() {
         {tab === 'meumes' && <MeuMesPage />}
         {tab === 'wedding' && <WeddingPage />}
         {tab === 'agenda' && <AgendaPage />}
-        {tab === 'dashboard' && <Dashboard />}
         {tab === 'timeline' && <TimelinePage />}
         {tab === 'salaries' && <SalariesPage />}
         {tab === 'projects' && <ProjectsPage />}
         {tab === 'expenses' && <ExpensesPage />}
-        {tab === 'other' && <OtherIncomePage />}
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-lg justify-between gap-0.5 overflow-x-auto px-1 py-2">
-          {NAV.slice(0, 6).map((item) => (
+          {NAV.map((item) => (
             <button
               key={item.id}
               type="button"

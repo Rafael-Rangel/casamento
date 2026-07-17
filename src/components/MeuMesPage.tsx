@@ -80,42 +80,46 @@ export function MeuMesPage() {
         </p>
       </header>
 
-      {/* Resposta principal */}
+      {/* Resposta principal: sobra para vida e cartão */}
       <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--ink)] p-5 text-white shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-          Depois de pagar tudo deste mês, sobra pra você
+          Depois do casamento, sobra para vida e cartão
         </p>
         <p
           className={`mt-2 font-display text-4xl font-extrabold tabular-nums ${
-            plan.leftoverForMe >= 0 ? 'text-[#7cdba8]' : 'text-[#f2b6c8]'
+            plan.leftoverForLife >= 0 ? 'text-[#7cdba8]' : 'text-[#f2b6c8]'
           }`}
         >
-          {fmt(plan.leftoverForMe)}
+          {fmt(plan.leftoverForLife)}
         </p>
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-white/10 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">Caixa agora</p>
-            <p className="font-bold">{fmt(plan.cashNow)}</p>
-          </div>
-          <div className="rounded-xl bg-white/10 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">+ Entra no mês</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebemos no mês</p>
             <p className="font-bold text-[#7cdba8]">{fmt(plan.incomeTotal)}</p>
           </div>
           <div className="rounded-xl bg-white/10 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">− Precisa pagar</p>
-            <p className="font-bold text-[#f2b6c8]">{fmt(plan.mustPayTotal)}</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/50">
+              − Gastos do casamento
+            </p>
+            <p className="font-bold text-[#f2b6c8]">{fmt(plan.weddingTotal)}</p>
           </div>
         </div>
-        <p className="mt-3 text-xs text-white/55">
-          Daqui pra frente (ainda não recebido − ainda não pago):{' '}
-          <span className="font-semibold text-white">{fmt(plan.leftoverFromNow)}</span>
-        </p>
+        <div className="mt-3 rounded-xl bg-white/5 px-3 py-2 text-xs text-white/70">
+          Depois de pagar também vida & cartão já lançados ({fmt(plan.lifeTotal)}), sobra livre:{' '}
+          <span
+            className={`font-bold ${
+              plan.leftoverAfterLife >= 0 ? 'text-[#7cdba8]' : 'text-[#f2b6c8]'
+            }`}
+          >
+            {fmt(plan.leftoverAfterLife)}
+          </span>
+        </div>
       </section>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Entra no mês
+            Recebemos no mês
           </p>
           <Money value={plan.incomeTotal} className="mt-1 block text-xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
@@ -124,23 +128,59 @@ export function MeuMesPage() {
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Pagar no mês
+            Gastos do casamento
           </p>
-          <Money value={-plan.mustPayTotal} className="mt-1 block text-xl" />
+          <Money value={-plan.weddingTotal} className="mt-1 block text-xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Vida {fmt(plan.lifeTotal)} · Casamento {fmt(plan.weddingTotal)}
+            Falta pagar: {fmt(plan.weddingPending)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Ainda falta pagar
+            Sobra p/ vida e cartão
           </p>
-          <Money value={-plan.mustPayPending} className="mt-1 block text-xl" />
+          <Money value={plan.leftoverForLife} className="mt-1 block text-xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Vida {fmt(plan.lifePending)} · Casamento {fmt(plan.weddingPending)}
+            Vida já lançada: {fmt(plan.lifeTotal)}
           </p>
         </div>
       </div>
+
+      {/* Gastos do casamento por categoria */}
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold">Casamento por categoria</h2>
+          <Money value={-plan.weddingTotal} />
+        </div>
+        {plan.weddingByCategory.length === 0 ? (
+          <p className="text-sm text-[var(--ink-muted)]">Nada do casamento neste mês.</p>
+        ) : (
+          <ul className="space-y-2">
+            {plan.weddingByCategory.map((c) => {
+              const pct = plan.weddingTotal > 0 ? (c.total / plan.weddingTotal) * 100 : 0
+              return (
+                <li key={c.tag}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="font-semibold text-[var(--ink)]">{c.label}</span>
+                    <span className="tabular-nums text-[var(--ink)]">{fmt(c.total)}</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+                    <div
+                      className="h-2 rounded-full bg-[var(--rose)]"
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                  {c.pending > 0 && (
+                    <p className="mt-0.5 text-[10px] text-[var(--ink-muted)]">
+                      Falta pagar {fmt(c.pending)}
+                    </p>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
