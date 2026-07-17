@@ -161,7 +161,7 @@ export function MeuMesPage() {
           <div className="rounded-xl bg-white/10 px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wide text-white/50">Recebimentos do mês</p>
             <p className="mt-0.5 text-sm font-bold text-white">
-              Total {fmt(plan.incomeTotal)}
+              <span className="text-[#7bd3a0]">Total {fmt(plan.incomeTotal)}</span>
               <span className="mx-1.5 font-normal text-white/35">·</span>
               <span className="text-[#ef9d86]">falta {fmt(plan.incomePending)}</span>
             </p>
