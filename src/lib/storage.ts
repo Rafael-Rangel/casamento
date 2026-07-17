@@ -8,9 +8,17 @@ import {
   seedSalaries,
   SEED_VERSION,
   STORAGE_KEY,
+  WEDDING_JUNE_SEED_VERSION,
 } from './defaults'
-import { createWeddingState } from './wedding'
-import type { CashBalance, Expense, FinanceState, Project, SalarySource } from '../types/finance'
+import { createWeddingState, JUNE_PAID_CHECKS } from './wedding'
+import type {
+  CashBalance,
+  Expense,
+  FinanceState,
+  Project,
+  SalarySource,
+  WeddingState,
+} from '../types/finance'
 
 /** Injeta projetos-semente ausentes (por id) uma única vez por versão de semente */
 function applyProjectSeed(projects: Project[], seedVersion: number | undefined): Project[] {
@@ -52,6 +60,48 @@ function applyCashSeed(
   return seedCashBalance()
 }
 
+function applyWeddingJuneSeed(
+  wedding: WeddingState | undefined,
+  seedVersion: number | undefined,
+): WeddingState {
+  const base = createWeddingState()
+  if (!wedding) return base
+
+  if (seedVersion !== undefined && seedVersion >= WEDDING_JUNE_SEED_VERSION) {
+    return {
+      ...base,
+      ...wedding,
+      checked: wedding.checked || {},
+      flexItems: wedding.flexItems?.length ? wedding.flexItems : base.flexItems,
+      alreadyPaid: wedding.alreadyPaid?.length ? wedding.alreadyPaid : base.alreadyPaid,
+    }
+  }
+
+  const paidNames = new Set((wedding.alreadyPaid || []).map((i) => i.name))
+  const mergedPaid = [
+    ...(wedding.alreadyPaid || []),
+    ...base.alreadyPaid.filter((i) => !paidNames.has(i.name)),
+  ]
+
+  // Remove checkbox antigo do salão cheio de junho, se existir
+  const checked = { ...(wedding.checked || {}) }
+  delete checked['Jun::Salão de Festas']
+
+  return {
+    ...base,
+    ...wedding,
+    checked: { ...JUNE_PAID_CHECKS, ...checked },
+    alreadyPaid: mergedPaid,
+    totals: {
+      ...base.totals,
+      ...(wedding.totals || {}),
+      salaRemaining: base.totals.salaRemaining,
+      vestidoTotal: base.totals.vestidoTotal,
+    },
+    flexItems: wedding.flexItems?.length ? wedding.flexItems : base.flexItems,
+  }
+}
+
 export function loadState(): FinanceState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -66,17 +116,7 @@ export function loadState(): FinanceState {
       projects: applyProjectSeed(parsed.projects ?? base.projects, parsed.seedVersion),
       cashBalance: applyCashSeed(parsed.cashBalance, parsed.seedVersion),
       seedVersion: SEED_VERSION,
-      wedding: {
-        ...createWeddingState(),
-        ...(parsed.wedding || {}),
-        checked: parsed.wedding?.checked || {},
-        flexItems: parsed.wedding?.flexItems?.length
-          ? parsed.wedding.flexItems
-          : base.wedding.flexItems,
-        alreadyPaid: parsed.wedding?.alreadyPaid?.length
-          ? parsed.wedding.alreadyPaid
-          : base.wedding.alreadyPaid,
-      },
+      wedding: applyWeddingJuneSeed(parsed.wedding, parsed.seedVersion),
       expenses: (parsed.expenses || base.expenses).map((e: Expense) => ({
         ...e,
         purpose: e.purpose || 'life',

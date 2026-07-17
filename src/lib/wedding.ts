@@ -13,6 +13,9 @@ export const WEDDING_MONTHS = [
 
 export const SALAO_PM = 1557
 export const SALAO_LAST = 1558
+/** Em junho pagaram só R$ 500 dos R$ 1.557 do salão */
+export const SALAO_JUNE_PAID = 500
+export const SALAO_JUNE_REST = SALAO_PM - SALAO_JUNE_PAID
 export const VESTIDO_PM = 300
 export const VESTIDO_LAST = 200
 export const DIA_PM = 368
@@ -30,21 +33,34 @@ export const DEFAULT_FLEX: WeddingFlexItem[] = [
   { id: 'mobilia', name: 'Mobília da Casa', amount: 12000, tag: 'casa' },
 ]
 
+/** Checkboxes já pagos em junho/2026 */
+export const JUNE_PAID_CHECKS: Record<string, boolean> = {
+  'Jun::Salão (parcial R$ 500)': true,
+  'Jun::Vestido (1/7)': true,
+  'Jun::Presentes Padrinhos': true,
+  'Jun::Presentes Damonsellies': true,
+}
+
 export function createWeddingState(): WeddingState {
   return {
     dateLabel: '12/12/2026',
-    checked: {},
+    checked: { ...JUNE_PAID_CHECKS },
     alreadyPaid: [
       { name: 'Entrada Salão', amount: 2800 },
       { name: 'Obra – banheiro (parcial)', amount: 400 },
       { name: 'Dia da Noiva (junho)', amount: 400 },
       { name: 'Brownies / Lembranças', amount: 550 },
       { name: 'Materiais obra', amount: 2244 },
+      { name: 'Salão junho (parcial)', amount: SALAO_JUNE_PAID },
+      { name: 'Vestido (1/7)', amount: VESTIDO_PM },
+      { name: 'Presentes Padrinhos', amount: 440 },
+      { name: 'Presentes Damonsellies', amount: 111 },
     ],
     flexItems: DEFAULT_FLEX.map((f) => ({ ...f, id: f.id || uid() })),
     totals: {
-      salaRemaining: 10900,
-      vestidoTotal: 2000,
+      /** 10.900 − 500 pago em junho = 10.400 ainda do salão */
+      salaRemaining: 10400,
+      vestidoTotal: 1700, // 2000 − 300 já pago
       diaNoivaRemaining: 2210,
       fotografo: 3400,
       preWedding: 830,
@@ -115,7 +131,11 @@ export function buildWeddingSchedule(
       rem -= amount
     }
 
-    add(last ? 'Salão ✓ quitado' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
+    if (june) {
+      add('Salão (parcial R$ 500)', SALAO_JUNE_PAID, 'salão')
+    } else {
+      add(last ? 'Salão ✓ quitado' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
+    }
     add(
       last ? 'Vestido ✓ quitado (7/7)' : `Vestido (${i + 1}/7)`,
       last ? VESTIDO_LAST : VESTIDO_PM,
@@ -131,6 +151,7 @@ export function buildWeddingSchedule(
       add('Presentes Damonsellies', 111, 'convites')
     }
     if (july) {
+      add('Salão (resto junho)', SALAO_JUNE_REST, 'salão')
       add('Obra banheiro ✓ quitado', 600, 'obra')
       add('Fotógrafo ✓ quitado (2ª/2)', 1700, 'foto')
     }
