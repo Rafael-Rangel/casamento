@@ -32,16 +32,30 @@
   --line: #313d49;
   --bg0: #10151b;
   --bg1: #141b22;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --nav-h: 4.25rem;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  height: -webkit-fill-available;
 }
 
 html,
 body,
 #root {
   min-height: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
 }
 
 body {
@@ -54,15 +68,50 @@ body {
     linear-gradient(180deg, var(--bg0), var(--bg1) 45%, #0d1217 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+  padding: var(--safe-top) var(--safe-right) 0 var(--safe-left);
+}
+
+#root {
+  isolation: isolate;
 }
 
 .font-display {
   font-family: var(--font-display);
 }
 
+/* App shell mobile */
+.app-shell {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
+}
+
+.app-nav-mobile {
+  padding-bottom: max(0.35rem, var(--safe-bottom));
+  padding-left: max(0.25rem, var(--safe-left));
+  padding-right: max(0.25rem, var(--safe-right));
+}
+
+.app-nav-mobile button {
+  min-height: 2.75rem;
+  touch-action: manipulation;
+}
+
+/* Inputs maiores no touch */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px; /* evita zoom no iOS */
+  }
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-thumb {
   background: #3a4652;

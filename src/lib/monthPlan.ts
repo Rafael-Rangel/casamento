@@ -7,6 +7,7 @@ import {
   type AgendaKind,
 } from './agenda'
 import { weddingMonthBudgets } from './projections'
+import { getReferenceDate } from './referenceDate'
 import { buildWeddingSchedule, TAG_LABEL } from './wedding'
 
 export interface MonthObligation {
@@ -56,13 +57,13 @@ export interface MonthPlan {
   /** Tudo que precisa pagar no mês */
   mustPayTotal: number
   mustPayPending: number
-  /** Receita − o que AINDA falta do casamento (checks reduzem) */
+  /** Conta agora − casamento ainda pendente no mês */
   leftoverForLife: number
   /** Sobra após vida/cartão ainda pendente */
   leftoverAfterLife: number
-  /** Sobra pra você depois de pagar tudo do mês */
+  /** Conta + o que ainda entra − tudo que ainda falta pagar */
   leftoverForMe: number
-  /** Com o caixa de hoje + o que ainda entra − o que ainda falta pagar */
+  /** Igual leftoverForMe (visão “a partir de agora”) */
   leftoverFromNow: number
   /** Agenda do mês: o que receber e o que pagar em cada dia */
   daily: {
@@ -159,20 +160,39 @@ function toObligation(e: AgendaEvent, todayKey: string): MonthObligation {
   }
 }
 
-export function buildMonthPlan(state: FinanceState, today: Date = new Date()): MonthPlan {
-  const monthStart = startOfMonth(today)
-  const monthKey = format(today, 'yyyy-MM')
-  const todayKey = format(today, 'yyyy-MM-dd')
-  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+export function buildMonthPlan(state: FinanceState, today?: Date): MonthPlan {
+  const ref = today ?? getReferenceDate(state)
+  const monthStart = startOfMonth(ref)
+  const monthKey = format(ref, 'yyyy-MM')
+  const todayKey = format(ref, 'yyyy-MM-dd')
+  const monthEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0)
 
   const financeEvents = collectAgendaEvents(state, monthStart, monthEnd)
   const incomeItems = financeEvents
     .filter((e) => e.direction === 'in')
     .map((e) => toObligation(e, todayKey))
+
+  const isWeddingExpense = (e: (typeof financeEvents)[0]) =>
+    e.direction === 'out' && e.meta.startsWith('Casamento ·')
+
   const lifeItems = financeEvents
-    .filter((e) => e.direction === 'out')
+    .filter((e) => e.direction === 'out' && !isWeddingExpense(e))
     .map((e) => toObligation(e, todayKey))
-  const weddingItems = weddingObligations(state, monthKey, todayKey)
+
+  const extraWeddingItems = financeEvents
+    .filter(isWeddingExpense)
+    .map((e) => ({
+      ...toObligation(e, todayKey),
+      kind: 'wedding' as const,
+      source: 'wedding' as const,
+      tag: 'outros',
+      meta: e.meta,
+    }))
+
+  const weddingItems = [
+    ...weddingObligations(state, monthKey, todayKey),
+    ...extraWeddingItems,
+  ]
 
   const sum = (items: MonthObligation[], pred: (i: MonthObligation) => boolean) =>
     items.filter(pred).reduce((s, i) => s + i.amount, 0)
@@ -195,11 +215,12 @@ export function buildMonthPlan(state: FinanceState, today: Date = new Date()): M
   const mustPayPending = lifePending + weddingPending
 
   const cashNow = state.cashBalance?.amount ?? 0
-  // Sobra olhando o que AINDA falta pagar do casamento (checks reduzem)
-  const leftoverForLife = incomeTotal - weddingPending
+  /** Conta agora − o que ainda falta do casamento neste mês */
+  const leftoverForLife = cashNow - weddingPending
+  /** Depois de pagar também a vida/cartão pendente */
   const leftoverAfterLife = leftoverForLife - lifePending
-  const leftoverForMe = cashNow + incomeTotal - (lifeTotal + weddingTotal)
-  const leftoverFromNow = cashNow + incomePending - mustPayPending
+  const leftoverForMe = cashNow + incomePending - (lifePending + weddingPending)
+  const leftoverFromNow = leftoverForMe
 
   const byDate = new Map<string, { receive: MonthObligation[]; pay: MonthObligation[] }>()
   const bump = (item: MonthObligation) => {
@@ -208,7 +229,8 @@ export function buildMonthPlan(state: FinanceState, today: Date = new Date()): M
     else bucket.pay.push(item)
     byDate.set(item.date, bucket)
   }
-  ;[...incomeItems, ...lifeItems, ...weddingItems].forEach(bump)
+  // Casamento é mensal (sem data fixa): fica fora do dia-a-dia
+  ;[...incomeItems, ...lifeItems].forEach(bump)
 
   const daily = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -230,7 +252,7 @@ export function buildMonthPlan(state: FinanceState, today: Date = new Date()): M
 
   return {
     monthKey,
-    monthLabel: format(today, "MMMM yyyy", { locale: ptBR }),
+    monthLabel: format(ref, "MMMM yyyy", { locale: ptBR }),
     today: todayKey,
     cashNow,
     incomeTotal,

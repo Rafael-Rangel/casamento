@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useFinance } from '../context/FinanceContext'
 import { buildMonthPlan, type MonthObligation } from '../lib/monthPlan'
@@ -10,8 +10,11 @@ function capitalize(s: string) {
 }
 
 function ItemRow({ item }: { item: MonthObligation }) {
+  const isWedding = item.source === 'wedding'
   const badge = item.paid
-    ? 'Na data'
+    ? isWedding
+      ? 'Pago'
+      : 'Na data'
     : item.direction === 'in'
       ? 'A receber'
       : 'A pagar'
@@ -39,7 +42,9 @@ function ItemRow({ item }: { item: MonthObligation }) {
           </span>
         </div>
         <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
-          {format(new Date(item.date + 'T12:00:00'), 'dd/MM')} · {item.meta}
+          {isWedding
+            ? item.meta
+            : `${format(new Date(item.date + 'T12:00:00'), 'dd/MM')} · ${item.meta}`}
         </p>
       </div>
       <Money
@@ -51,9 +56,10 @@ function ItemRow({ item }: { item: MonthObligation }) {
 }
 
 export function MeuMesPage() {
-  const { state } = useFinance()
-  const today = useMemo(() => new Date(), [])
-  const plan = useMemo(() => buildMonthPlan(state, today), [state, today])
+  const { state, setCashBalance } = useFinance()
+  const plan = useMemo(() => buildMonthPlan(state), [state])
+  const [editingCash, setEditingCash] = useState(false)
+  const [cashDraft, setCashDraft] = useState('')
 
   const payQueue = [
     ...plan.lifeItems.filter((i) => !i.paid),
@@ -82,13 +88,16 @@ export function MeuMesPage() {
           {capitalize(plan.monthLabel)}
         </h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Recebemos − o que ainda falta do casamento = sobra. Marcar ✓ reduz o que falta.
+            Conta − casamento do mês = sobra pra viver. Marcar ✓ no casamento sobe a sobra.
           </p>
       </header>
 
       <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
           Sobra para vida e cartão
+        </p>
+        <p className="mt-1 text-[11px] text-white/45">
+          Se pagar tudo do casamento deste mês com o que tem agora
         </p>
         <p
           className={`mt-2 font-display text-4xl font-extrabold tabular-nums ${
@@ -97,34 +106,83 @@ export function MeuMesPage() {
         >
           {fmt(plan.leftoverForLife)}
         </p>
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-          <div className="rounded-xl bg-white/10 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebemos</p>
-            <p className="font-bold text-[#7bd3a0]">{fmt(plan.incomeTotal)}</p>
-            <p className="mt-0.5 text-[10px] text-white/45">
-              Já {fmt(plan.incomeReceived)} · falta {fmt(plan.incomePending)}
-            </p>
+        <p className="mt-1 text-[11px] text-white/40">
+          {fmt(plan.cashNow)} − {fmt(plan.weddingPending)} casamento
+        </p>
+
+        <div className="mt-4 space-y-2">
+          <div className="rounded-xl bg-white/10 px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-white/50">Valor na conta</p>
+            {editingCash ? (
+              <form
+                className="mt-1 flex items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const amount = Number(cashDraft.replace(',', '.'))
+                  if (!Number.isFinite(amount)) return
+                  setCashBalance({
+                    amount,
+                    asOf: format(new Date(), 'yyyy-MM-dd'),
+                    notes: 'Saldo atualizado manualmente',
+                  })
+                  setEditingCash(false)
+                }}
+              >
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={cashDraft}
+                  onChange={(e) => setCashDraft(e.target.value)}
+                  className="w-full rounded-lg border border-white/20 bg-black/30 px-2 py-1 text-sm font-bold text-white outline-none"
+                />
+                <button type="submit" className="text-[10px] font-bold text-[#7bd3a0]">
+                  OK
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={() => {
+                  setCashDraft(String(plan.cashNow))
+                  setEditingCash(true)
+                }}
+              >
+                <p className="mt-0.5 font-display text-2xl font-bold text-white">
+                  {fmt(plan.cashNow)}
+                </p>
+                <p className="mt-0.5 text-[10px] text-white/40">
+                  Tudo que já entrou − o que já saiu · toque para editar
+                </p>
+              </button>
+            )}
           </div>
-          <div className="rounded-xl bg-white/10 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">
-              − Ainda falta do casamento
+
+          <div className="rounded-xl bg-white/10 px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebimentos do mês</p>
+            <p className="mt-0.5 text-sm font-bold text-white">
+              Total {fmt(plan.incomeTotal)}
+              <span className="mx-1.5 font-normal text-white/35">·</span>
+              <span className="text-[#ef9d86]">falta {fmt(plan.incomePending)}</span>
             </p>
-            <p className="font-bold text-[#ef9d86]">{fmt(plan.weddingPending)}</p>
-            <p className="mt-0.5 text-[10px] text-white/45">
-              Plano do mês {fmt(plan.weddingTotal)} · já marcado {fmt(plan.weddingPaid)}
+            <p className="mt-0.5 text-[10px] text-white/40">
+              Já recebido {fmt(plan.incomeReceived)} · falta entrar para fechar o total
             </p>
           </div>
         </div>
-        <p className="mt-3 text-xs text-white/55">
-          Depois da vida/cartão ainda pendente ({fmt(plan.lifePending)}), sobra livre{' '}
-          <span
-            className={`font-bold ${
-              plan.leftoverAfterLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
-            }`}
-          >
-            {fmt(plan.leftoverAfterLife)}
-          </span>
-        </p>
+
+        {plan.lifePending > 0 && (
+          <p className="mt-3 text-xs text-white/55">
+            Depois da vida/cartão pendente ({fmt(plan.lifePending)}), sobra{' '}
+            <span
+              className={`font-bold ${
+                plan.leftoverAfterLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+              }`}
+            >
+              {fmt(plan.leftoverAfterLife)}
+            </span>
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">

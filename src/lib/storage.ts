@@ -1,5 +1,5 @@
 import {
-  CASH_SEED_VERSION,
+  CASH_AND_JULY_PAID_SEED_VERSION,
   createInitialState,
   PROJECT_SEED_VERSION,
   SALARY_SEED_VERSION,
@@ -15,6 +15,7 @@ import {
   createWeddingState,
   DEFERRED_FLEX_IDS,
   JUNE_PAID_CHECKS,
+  JULY_ALREADY_PAID_CHECKS,
 } from './wedding'
 import type {
   CashBalance,
@@ -61,7 +62,10 @@ function applyCashSeed(
   cash: CashBalance | undefined,
   seedVersion: number | undefined,
 ): CashBalance {
-  if (seedVersion !== undefined && seedVersion >= CASH_SEED_VERSION && cash) return cash
+  if (seedVersion !== undefined && seedVersion >= CASH_AND_JULY_PAID_SEED_VERSION && cash) {
+    return cash
+  }
+  // Corrige 6.760,22 → 6.720,22 (ou aplica semente pela 1ª vez)
   return seedCashBalance()
 }
 
@@ -72,14 +76,28 @@ function applyWeddingJuneSeed(
   const base = createWeddingState()
   if (!wedding) return base
 
-  if (seedVersion !== undefined && seedVersion >= WEDDING_FULL_SCHEDULE_SEED_VERSION) {
+  if (seedVersion !== undefined && seedVersion >= CASH_AND_JULY_PAID_SEED_VERSION) {
     const flexItems = (wedding.flexItems || []).filter((f) => !DEFERRED_FLEX_IDS.has(f.id))
     return {
-      ...base,
       ...wedding,
-      checked: wedding.checked || {},
+      checked: { ...(wedding.checked || {}), ...JULY_ALREADY_PAID_CHECKS },
       flexItems: flexItems.length ? flexItems : base.flexItems,
       alreadyPaid: wedding.alreadyPaid?.length ? wedding.alreadyPaid : base.alreadyPaid,
+    }
+  }
+
+  if (seedVersion !== undefined && seedVersion >= WEDDING_FULL_SCHEDULE_SEED_VERSION) {
+    const flexItems = (wedding.flexItems || []).filter((f) => !DEFERRED_FLEX_IDS.has(f.id))
+    const paidNames = new Set((wedding.alreadyPaid || []).map((i) => i.name))
+    const mergedPaid = [
+      ...(wedding.alreadyPaid || []),
+      ...base.alreadyPaid.filter((i) => !paidNames.has(i.name)),
+    ]
+    return {
+      ...wedding,
+      checked: { ...(wedding.checked || {}), ...JULY_ALREADY_PAID_CHECKS },
+      flexItems: flexItems.length ? flexItems : base.flexItems,
+      alreadyPaid: mergedPaid.length ? mergedPaid : base.alreadyPaid,
     }
   }
 

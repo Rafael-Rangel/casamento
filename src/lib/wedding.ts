@@ -61,10 +61,16 @@ export const JUNE_PAID_CHECKS: Record<string, boolean> = {
   'Jun::Presentes Damonsellies': true,
 }
 
+/** Julho: Vestido e obra já liquidados — não entram no “ainda falta” */
+export const JULY_ALREADY_PAID_CHECKS: Record<string, boolean> = {
+  'Jul::Vestido (2/7)': true,
+  'Jul::Obra banheiro (restante)': true,
+}
+
 export function createWeddingState(): WeddingState {
   return {
     dateLabel: '12/12/2026',
-    checked: { ...JUNE_PAID_CHECKS },
+    checked: { ...JUNE_PAID_CHECKS, ...JULY_ALREADY_PAID_CHECKS },
     alreadyPaid: [
       { name: 'Entrada Salão', amount: 2800 },
       { name: 'Obra – banheiro (parcial)', amount: 400 },
@@ -76,16 +82,18 @@ export function createWeddingState(): WeddingState {
       { name: 'Obra banheiro (1ª parcela)', amount: 200 },
       { name: 'Presentes Padrinhos', amount: 440 },
       { name: 'Presentes Damonsellies', amount: 111 },
+      { name: 'Vestido (2/7 · julho)', amount: VESTIDO_PM },
+      { name: 'Obra banheiro (restante · julho)', amount: 600 },
     ],
     flexItems: DEFAULT_FLEX.map((f) => ({ ...f, id: f.id || uid() })),
     totals: {
       /** 10.900 − 500 pago em junho = 10.400 ainda do salão */
       salaRemaining: 10400,
-      vestidoTotal: 1700, // 2000 − 300 já pago
+      vestidoTotal: 1400, // 2000 − 300 − 300 (jun + jul)
       diaNoivaRemaining: 2210,
       fotografo: 3400,
       preWedding: 830,
-      obraMaoDeObra: 600, // 800 − 200 da 1ª parcela
+      obraMaoDeObra: 0, // 800 quitado (200 + 600)
     },
   }
 }
@@ -266,4 +274,46 @@ export function buildWeddingSchedule(
   const totalRemaining = fixedTotal + flexTotal
 
   return { schedule: sched, deficit, unpaid, totalRemaining, deferred }
+}
+
+export function isPaymentChecked(
+  checked: Record<string, boolean>,
+  monthShort: string,
+  paymentName: string,
+): boolean {
+  return !!checked[`${monthShort}::${paymentName}`]
+}
+
+/** Tudo que ainda falta no cronograma (derivado dos checks, não de totais fixos). */
+export function schedulePendingByItem(
+  schedule: MonthSchedule[],
+  checked: Record<string, boolean>,
+): { name: string; amount: number; tag: string }[] {
+  const map = new Map<string, { amount: number; tag: string }>()
+  for (const month of schedule) {
+    for (const p of month.payments) {
+      if (isPaymentChecked(checked, month.short, p.name)) continue
+      const prev = map.get(p.name)
+      if (prev) prev.amount += p.amount
+      else map.set(p.name, { amount: p.amount, tag: p.tag })
+    }
+  }
+  return [...map.entries()].map(([name, v]) => ({ name, ...v }))
+}
+
+export function scheduleTotals(
+  schedule: MonthSchedule[],
+  checked: Record<string, boolean>,
+) {
+  let total = 0
+  let pending = 0
+  let paid = 0
+  for (const month of schedule) {
+    for (const p of month.payments) {
+      total += p.amount
+      if (isPaymentChecked(checked, month.short, p.name)) paid += p.amount
+      else pending += p.amount
+    }
+  }
+  return { total, pending, paid }
 }

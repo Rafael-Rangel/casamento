@@ -9,6 +9,7 @@ import {
   type AgendaEvent,
 } from '../lib/agenda'
 import { buildMonthPlan } from '../lib/monthPlan'
+import { getReferenceDate } from '../lib/referenceDate'
 import { fmt } from '../lib/format'
 import { Money } from './ui'
 
@@ -29,7 +30,7 @@ function monthsUntilWeddingEnd(today: Date) {
 
 export function AgendaPage() {
   const { state } = useFinance()
-  const today = useMemo(() => new Date(), [])
+  const today = useMemo(() => getReferenceDate(state), [state])
   const untilDec = monthsUntilWeddingEnd(today)
   const [monthsAhead, setMonthsAhead] = useState(Math.min(2, untilDec || 2))
   const [filter, setFilter] = useState<'all' | 'in' | 'out' | 'upcoming'>('upcoming')
@@ -46,7 +47,7 @@ export function AgendaPage() {
     () => cashflowSnapshot(state, today, monthsAhead),
     [state, today, monthsAhead],
   )
-  const plan = useMemo(() => buildMonthPlan(state, today), [state, today])
+  const plan = useMemo(() => buildMonthPlan(state), [state])
 
   const visibleDays = days.filter((d) => {
     if (filter === 'upcoming') return d.isToday || d.isFuture
@@ -86,11 +87,11 @@ export function AgendaPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Recebemos (mês)
+            Valor na conta
           </p>
-          <Money value={plan.incomeTotal} className="mt-1 block text-2xl" />
+          <Money value={plan.cashNow} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Já {fmt(plan.incomeReceived)} · falta {fmt(plan.incomePending)}
+            Total {fmt(plan.incomeTotal)} · falta {fmt(plan.incomePending)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -117,7 +118,7 @@ export function AgendaPage() {
           </p>
           <Money value={plan.leftoverForLife} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Recebemos − ainda falta do casamento
+            Conta − casamento do mês
           </p>
         </div>
       </div>

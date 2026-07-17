@@ -9,7 +9,9 @@ import {
 } from 'react'
 import { loadState, saveState } from '../lib/storage'
 import { buildProjections } from '../lib/projections'
+import { getReferenceDate } from '../lib/referenceDate'
 import { STORAGE_KEY } from '../lib/defaults'
+import { applyAgentActions, type AgentAction } from '../lib/agentActions'
 import type {
   CashBalance,
   Category,
@@ -37,6 +39,7 @@ interface FinanceContextValue {
   removeCategory: (id: string) => void
   updateWedding: (wedding: Partial<WeddingState>) => void
   setCashBalance: (cash: Partial<CashBalance>) => void
+  runAgentActions: (actions: AgentAction[]) => string[]
   toggleWeddingCheck: (monthShort: string, itemName: string) => void
   isWeddingChecked: (monthShort: string, itemName: string) => boolean
   resetAll: () => void
@@ -51,7 +54,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     saveState(state)
   }, [state])
 
-  const projections = useMemo(() => buildProjections(state), [state])
+  const projections = useMemo(
+    () => buildProjections(state, getReferenceDate(state)),
+    [state],
+  )
 
   const patch = useCallback((fn: (prev: FinanceState) => FinanceState) => {
     setState(fn)
@@ -138,6 +144,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ...cash,
         },
       })),
+    runAgentActions: (actions) => {
+      const result = applyAgentActions(state, actions)
+      setState(result.state)
+      return result.applied
+    },
     toggleWeddingCheck: (monthShort, itemName) =>
       patch((s) => {
         const key = `${monthShort}::${itemName}`

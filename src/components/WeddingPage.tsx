@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import { weddingMonthBudgets } from '../lib/projections'
-import { buildWeddingSchedule, TAG_COLORS, TAG_LABEL, activeFlexItems } from '../lib/wedding'
+import { buildWeddingSchedule, schedulePendingByItem, scheduleTotals, TAG_COLORS, TAG_LABEL, activeFlexItems } from '../lib/wedding'
 import { fmt, uid } from '../lib/format'
 import type { WeddingFlexItem } from '../types/finance'
 import { Button, Field, Input, Modal, Money, Select } from './ui'
@@ -30,6 +30,16 @@ export function WeddingPage() {
   const { schedule, unpaid, totalRemaining, deferred } = useMemo(
     () => buildWeddingSchedule(budgets, state.wedding.flexItems),
     [budgets, state.wedding.flexItems],
+  )
+
+  const { pending: schedulePending } = useMemo(
+    () => scheduleTotals(schedule, state.wedding.checked),
+    [schedule, state.wedding.checked],
+  )
+
+  const pendingByItem = useMemo(
+    () => schedulePendingByItem(schedule, state.wedding.checked),
+    [schedule, state.wedding.checked],
   )
 
   const totalSavings = budgets.reduce((s, b) => s + Math.max(0, b), 0)
@@ -61,14 +71,6 @@ export function WeddingPage() {
   }, 0)
 
   const alreadyPaidTotal = state.wedding.alreadyPaid.reduce((s, i) => s + i.amount, 0)
-  const fixedToPay = [
-    ['Salão de Festas', state.wedding.totals.salaRemaining],
-    ['Fotógrafo Casamento', state.wedding.totals.fotografo],
-    ['Pré-Wedding (dez)', state.wedding.totals.preWedding],
-    ['Vestido da Noiva', state.wedding.totals.vestidoTotal],
-    ['Dia da Noiva (restante)', state.wedding.totals.diaNoivaRemaining],
-    ['Obra banheiro – mão de obra (restante)', state.wedding.totals.obraMaoDeObra],
-  ] as [string, number][]
 
   const saveFlex = () => {
     if (!flexForm.name.trim() || flexForm.amount <= 0) return
@@ -492,25 +494,21 @@ export function WeddingPage() {
           </div>
 
           <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <p className="mb-3 font-bold text-[var(--ink)]">Fixos ainda a pagar</p>
-            {fixedToPay.map(([n, v]) => (
+            <p className="mb-3 font-bold text-[var(--ink)]">Cronograma ainda a pagar</p>
+            {pendingByItem.length === 0 ? (
+              <p className="text-sm text-[var(--ink-muted)]">Tudo marcado como pago no cronograma.</p>
+            ) : pendingByItem.map((item) => (
               <div
-                key={n}
+                key={item.name}
                 className="flex justify-between border-b border-[var(--surface-2)] py-1 text-sm last:border-0"
               >
-                <span className="text-[var(--ink-muted)]">{n}</span>
-                <span className="font-semibold">{fmt(v, true)}</span>
+                <span className="text-[var(--ink-muted)]">{item.name}</span>
+                <span className="font-semibold">{fmt(item.amount, true)}</span>
               </div>
             ))}
             <div className="mt-2 flex justify-between border-t border-[var(--line)] pt-2 text-sm font-bold">
-              <span>Fixos + flexíveis (cronograma)</span>
-              <span>
-                {fmt(
-                  fixedToPay.reduce((s, [, v]) => s + v, 0) +
-                    activeFlexItems(state.wedding.flexItems).reduce((s, f) => s + f.amount, 0),
-                  true,
-                )}
-              </span>
+              <span>Total do cronograma (pendente)</span>
+              <span>{fmt(schedulePending, true)}</span>
             </div>
           </div>
 

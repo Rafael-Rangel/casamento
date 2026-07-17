@@ -21,6 +21,7 @@ import type {
 } from '../types/finance'
 import { implementationIncome, monthlyYourShare } from './projectShare'
 import { collectAgendaEvents } from './agenda'
+import { getReferenceDate } from './referenceDate'
 
 function monthKey(d: Date) {
   return format(d, 'yyyy-MM')
@@ -254,7 +255,8 @@ export function buildProjections(
 }
 
 /** Sobra mensal Jul–Dez/2026 para alimentar o cronograma do casamento */
-export function weddingMonthBudgets(state: FinanceState, today: Date = new Date()): number[] {
+export function weddingMonthBudgets(state: FinanceState, today?: Date): number[] {
+  const ref = today ?? getReferenceDate(state)
   const keys = [
     '2026-07',
     '2026-08',
@@ -269,28 +271,27 @@ export function weddingMonthBudgets(state: FinanceState, today: Date = new Date(
   const byKey = Object.fromEntries(all.map((p) => [p.key, p.weddingBudget]))
   const budgets = keys.map((k) => byKey[k] ?? 0)
 
-  const todayKey = format(today, 'yyyy-MM')
+  const todayKey = format(ref, 'yyyy-MM')
   const cash = state.cashBalance
   const cashMonth = cash?.asOf?.slice(0, 7)
+  const refDay = cash?.asOf && cashMonth && keys.includes(cashMonth) ? cash.asOf : format(ref, 'yyyy-MM-dd')
 
-  // Mês do saldo em caixa: usa o dinheiro real + o que ainda falta entrar − o que ainda falta sair
+  // Mês do saldo em caixa: usa o dinheiro real + o que ainda falta entrar − o que ainda falta sair (só vida)
   if (cash && cashMonth && keys.includes(cashMonth)) {
     const idx = keys.indexOf(cashMonth)
     const monthStart = parseISO(`${cashMonth}-01`)
     const monthEnd = endOfMonth(monthStart)
     const events = collectAgendaEvents(state, monthStart, monthEnd)
-    const day = format(today, 'yyyy-MM-dd')
 
     let pendingIn = 0
     let pendingLifeOut = 0
     for (const e of events) {
-      if (e.date <= day) continue
+      if (e.date <= refDay) continue
       if (e.direction === 'in') pendingIn += e.amount
-      else if (e.kind === 'expense') pendingLifeOut += e.amount
+      else if (e.kind === 'expense' && !e.meta.startsWith('Casamento ·')) pendingLifeOut += e.amount
     }
 
-    // Não soma a projeção cheia do mês (evita contar de novo o que já está no caixa)
-    budgets[idx] = Math.max(0, cash.amount + pendingIn - pendingLifeOut)
+    budgets[idx] = cash.amount + pendingIn - pendingLifeOut
   } else if (cash?.amount && cashMonth && keys.includes(cashMonth)) {
     const idx = keys.indexOf(cashMonth)
     budgets[idx] += cash.amount

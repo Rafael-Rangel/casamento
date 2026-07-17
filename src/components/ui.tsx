@@ -95,7 +95,7 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className={`relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-[var(--surface)] p-5 shadow-2xl sm:rounded-3xl ${
+        className={`relative z-10 max-h-[min(92dvh,92vh)] w-full overflow-y-auto rounded-t-3xl bg-[var(--surface)] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:pb-5 ${
           wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'
         }`}
       >
