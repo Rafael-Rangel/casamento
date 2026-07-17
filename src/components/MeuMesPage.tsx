@@ -61,6 +61,15 @@ export function MeuMesPage() {
   const [editingCash, setEditingCash] = useState(false)
   const [cashDraft, setCashDraft] = useState('')
 
+  const cashAsOf = state.cashBalance?.asOf
+  const cashDateLabel = cashAsOf
+    ? format(new Date(cashAsOf + 'T12:00:00'), "dd/MM/yyyy")
+    : format(new Date(plan.today + 'T12:00:00'), "dd/MM/yyyy")
+
+  const spentThisMonth = plan.lifePaid + plan.weddingPaid
+  const cashAfterIncome = plan.cashNow + plan.incomePending
+  const pendingIncomeItems = plan.incomeItems.filter((i) => !i.paid).slice(0, 3)
+
   const payQueue = [
     ...plan.lifeItems.filter((i) => !i.paid),
     ...plan.weddingItems.filter((i) => !i.paid),
@@ -111,11 +120,16 @@ export function MeuMesPage() {
         </p>
 
         <div className="mt-4 space-y-2">
-          <div className="rounded-xl bg-white/10 px-3 py-2.5">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">Valor na conta</p>
+          <div className="rounded-xl bg-white/10 px-3 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-wide text-white/50">Valor na conta</p>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-semibold text-white/55">
+                {cashDateLabel}
+              </span>
+            </div>
             {editingCash ? (
               <form
-                className="mt-1 flex items-center gap-2"
+                className="mt-2 flex items-center gap-2"
                 onSubmit={(e) => {
                   e.preventDefault()
                   const amount = Number(cashDraft.replace(',', '.'))
@@ -142,36 +156,118 @@ export function MeuMesPage() {
             ) : (
               <button
                 type="button"
-                className="w-full text-left"
+                className="mt-1 w-full text-left"
                 onClick={() => {
                   setCashDraft(String(plan.cashNow))
                   setEditingCash(true)
                 }}
               >
                 <p
-                  className={`mt-0.5 font-display text-2xl font-bold ${
+                  className={`font-display text-2xl font-bold tabular-nums ${
                     plan.cashNow >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
                   }`}
                 >
                   {fmt(plan.cashNow)}
                 </p>
-                <p className="mt-0.5 text-[10px] text-white/40">
-                  Tudo que já entrou − o que já saiu · toque para editar
-                </p>
+                <p className="mt-0.5 text-[10px] text-white/40">Toque para editar o saldo</p>
               </button>
+            )}
+            <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2 text-[11px]">
+              <div className="flex justify-between gap-2">
+                <span className="text-white/45">Já entrou no mês</span>
+                <span className="font-semibold text-[#7bd3a0]">{fmt(plan.incomeReceived)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-white/45">Já saiu no mês</span>
+                <span className="font-semibold text-[#ef9d86]">{fmt(spentThisMonth)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-white/45">+ Falta entrar</span>
+                <span className="font-semibold text-sky-300">{fmt(plan.incomePending)}</span>
+              </div>
+              <div className="flex justify-between gap-2 border-t border-white/10 pt-1.5">
+                <span className="font-semibold text-white/70">Com tudo que falta entrar</span>
+                <span
+                  className={`font-bold tabular-nums ${
+                    cashAfterIncome >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+                  }`}
+                >
+                  {fmt(cashAfterIncome)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-white/10 px-3 py-3">
+            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebimentos do mês</p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg bg-black/20 px-2 py-2">
+                <p className="text-[9px] uppercase text-white/40">Total</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-[#7bd3a0]">
+                  {fmt(plan.incomeTotal)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-black/20 px-2 py-2">
+                <p className="text-[9px] uppercase text-white/40">Recebido</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-white">
+                  {fmt(plan.incomeReceived)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-black/20 px-2 py-2">
+                <p className="text-[9px] uppercase text-white/40">Falta</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-[#ef9d86]">
+                  {fmt(plan.incomePending)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/25">
+              <div
+                className="h-full rounded-full bg-[#7bd3a0]"
+                style={{
+                  width: `${
+                    plan.incomeTotal > 0
+                      ? Math.min(100, (plan.incomeReceived / plan.incomeTotal) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+            {pendingIncomeItems.length > 0 ? (
+              <ul className="mt-2 space-y-1 border-t border-white/10 pt-2 text-[10px] text-white/55">
+                {pendingIncomeItems.map((item) => (
+                  <li key={item.id} className="flex justify-between gap-2">
+                    <span className="truncate">
+                      {item.label} · {format(new Date(item.date + 'T12:00:00'), 'dd/MM')}
+                    </span>
+                    <span className="shrink-0 font-semibold text-sky-300">
+                      {fmt(item.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 border-t border-white/10 pt-2 text-[10px] text-white/40">
+                Tudo previsto para o mês já entrou.
+              </p>
             )}
           </div>
 
-          <div className="rounded-xl bg-white/10 px-3 py-2.5">
-            <p className="text-[10px] uppercase tracking-wide text-white/50">Recebimentos do mês</p>
-            <p className="mt-0.5 text-sm font-bold text-white">
-              <span className="text-[#7bd3a0]">Total {fmt(plan.incomeTotal)}</span>
-              <span className="mx-1.5 font-normal text-white/35">·</span>
-              <span className="text-[#ef9d86]">falta {fmt(plan.incomePending)}</span>
-            </p>
-            <p className="mt-0.5 text-[10px] text-white/40">
-              Já recebido {fmt(plan.incomeReceived)} · falta entrar para fechar o total
-            </p>
+          <div className="rounded-xl bg-white/10 px-3 py-3">
+            <p className="text-[10px] uppercase tracking-wide text-white/50">Ainda a pagar no mês</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+              <div className="flex justify-between gap-2 rounded-lg bg-black/20 px-2 py-2">
+                <span className="text-white/45">Casamento</span>
+                <span className="font-semibold text-[#ef9d86]">{fmt(plan.weddingPending)}</span>
+              </div>
+              <div className="flex justify-between gap-2 rounded-lg bg-black/20 px-2 py-2">
+                <span className="text-white/45">Vida/cartão</span>
+                <span className="font-semibold text-[#ef9d86]">{fmt(plan.lifePending)}</span>
+              </div>
+            </div>
+            <div className="mt-2 flex justify-between gap-2 border-t border-white/10 pt-2 text-[11px]">
+              <span className="font-semibold text-white/70">Total pendente</span>
+              <span className="font-bold text-[#ef9d86]">{fmt(plan.mustPayPending)}</span>
+            </div>
           </div>
         </div>
 
