@@ -1,5 +1,7 @@
 const MODEL = 'llama-3.3-70b-versatile'
 
+declare const process: { env: Record<string, string | undefined> }
+
 const SYSTEM_PROMPT = `
 Você é o agente financeiro do app "Casamento 12/12/2026".
 Responda sempre em português do Brasil, curto e prático.
