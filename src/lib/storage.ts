@@ -8,7 +8,7 @@ import {
   seedSalaries,
   SEED_VERSION,
   STORAGE_KEY,
-  WEDDING_JUNE_SEED_VERSION,
+  WEDDING_OBRA_SEED_VERSION,
 } from './defaults'
 import { createWeddingState, JUNE_PAID_CHECKS } from './wedding'
 import type {
@@ -67,7 +67,7 @@ function applyWeddingJuneSeed(
   const base = createWeddingState()
   if (!wedding) return base
 
-  if (seedVersion !== undefined && seedVersion >= WEDDING_JUNE_SEED_VERSION) {
+  if (seedVersion !== undefined && seedVersion >= WEDDING_OBRA_SEED_VERSION) {
     return {
       ...base,
       ...wedding,
@@ -97,6 +97,7 @@ function applyWeddingJuneSeed(
       ...(wedding.totals || {}),
       salaRemaining: base.totals.salaRemaining,
       vestidoTotal: base.totals.vestidoTotal,
+      obraMaoDeObra: base.totals.obraMaoDeObra,
     },
     flexItems: wedding.flexItems?.length ? wedding.flexItems : base.flexItems,
   }

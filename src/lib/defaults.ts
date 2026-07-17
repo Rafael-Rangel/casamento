@@ -13,7 +13,8 @@ export const PROJECT_SEED_VERSION = 1
 export const SALARY_SEED_VERSION = 2
 export const CASH_SEED_VERSION = 3
 export const WEDDING_JUNE_SEED_VERSION = 4
-export const SEED_VERSION = WEDDING_JUNE_SEED_VERSION
+export const WEDDING_OBRA_SEED_VERSION = 5
+export const SEED_VERSION = WEDDING_OBRA_SEED_VERSION
 
 export function seedCashBalance(): CashBalance {
   return {

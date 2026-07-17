@@ -37,6 +37,7 @@ export const DEFAULT_FLEX: WeddingFlexItem[] = [
 export const JUNE_PAID_CHECKS: Record<string, boolean> = {
   'Jun::Salão (parcial R$ 500)': true,
   'Jun::Vestido (1/7)': true,
+  'Jun::Obra banheiro (1ª parcela)': true,
   'Jun::Presentes Padrinhos': true,
   'Jun::Presentes Damonsellies': true,
 }
@@ -53,6 +54,7 @@ export function createWeddingState(): WeddingState {
       { name: 'Materiais obra', amount: 2244 },
       { name: 'Salão junho (parcial)', amount: SALAO_JUNE_PAID },
       { name: 'Vestido (1/7)', amount: VESTIDO_PM },
+      { name: 'Obra banheiro (1ª parcela)', amount: 200 },
       { name: 'Presentes Padrinhos', amount: 440 },
       { name: 'Presentes Damonsellies', amount: 111 },
     ],
@@ -64,7 +66,7 @@ export function createWeddingState(): WeddingState {
       diaNoivaRemaining: 2210,
       fotografo: 3400,
       preWedding: 830,
-      obraMaoDeObra: 800,
+      obraMaoDeObra: 600, // 800 − 200 da 1ª parcela
     },
   }
 }
