@@ -62,7 +62,7 @@ function Shell() {
                 onClick={() => setTab(item.id)}
                 className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                   tab === item.id
-                    ? 'bg-[var(--ink)] text-white'
+                    ? 'bg-[var(--rose)] text-white'
                     : 'text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]'
                 }`}
               >

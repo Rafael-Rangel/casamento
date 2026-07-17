@@ -57,10 +57,10 @@ export function Button({
 }) {
   const styles = {
     primary:
-      'bg-[var(--ink)] text-white hover:bg-[var(--ink-soft)] shadow-sm',
-    soft: 'bg-[var(--accent)] text-[var(--ink)] hover:brightness-95 font-semibold',
+      'bg-[var(--rose)] text-white hover:bg-[var(--rose-strong)] shadow-sm',
+    soft: 'bg-[var(--accent)] text-[#10151b] hover:brightness-110 font-semibold',
     ghost: 'bg-transparent text-[var(--ink)] hover:bg-[var(--surface-2)] border border-[var(--line)]',
-    danger: 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-100',
+    danger: 'bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-500/30',
   }
   return (
     <button
@@ -91,7 +91,7 @@ export function Modal({
       <button
         type="button"
         aria-label="Fechar"
-        className="absolute inset-0 bg-[var(--ink)]/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <div

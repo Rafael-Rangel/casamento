@@ -9,11 +9,11 @@ import type { MonthEntry } from '../types/finance'
 gsap.registerPlugin(useGSAP)
 
 const KIND_STYLE: Record<MonthEntry['kind'], string> = {
-  salary: 'bg-emerald-50 text-emerald-800',
-  project_payment: 'bg-sky-50 text-sky-800',
-  project_monthly: 'bg-teal-50 text-teal-800',
-  other_income: 'bg-lime-50 text-lime-800',
-  expense: 'bg-orange-50 text-orange-800',
+  salary: 'bg-emerald-500/15 text-emerald-300',
+  project_payment: 'bg-sky-500/15 text-sky-300',
+  project_monthly: 'bg-teal-500/15 text-teal-300',
+  other_income: 'bg-lime-500/15 text-lime-300',
+  expense: 'bg-orange-500/15 text-orange-300',
 }
 
 const KIND_LABEL: Record<MonthEntry['kind'], string> = {

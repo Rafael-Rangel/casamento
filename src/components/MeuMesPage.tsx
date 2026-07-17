@@ -22,10 +22,10 @@ function ItemRow({ item }: { item: MonthObligation }) {
           <span
             className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
               item.paid
-                ? 'bg-emerald-100 text-emerald-800'
+                ? 'bg-emerald-500/15 text-emerald-300'
                 : item.direction === 'in'
-                  ? 'bg-sky-100 text-sky-800'
-                  : 'bg-amber-100 text-amber-800'
+                  ? 'bg-sky-500/15 text-sky-300'
+                  : 'bg-amber-500/15 text-amber-300'
             }`}
           >
             {badge}
@@ -86,13 +86,13 @@ export function MeuMesPage() {
         </p>
       </header>
 
-      <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--ink)] p-5 text-white shadow-lg">
+      <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
           Sobra para vida e cartão
         </p>
         <p
           className={`mt-2 font-display text-4xl font-extrabold tabular-nums ${
-            plan.leftoverForLife >= 0 ? 'text-[#7cdba8]' : 'text-[#f2b6c8]'
+            plan.leftoverForLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
           }`}
         >
           {fmt(plan.leftoverForLife)}
@@ -100,7 +100,7 @@ export function MeuMesPage() {
         <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-white/50">Recebemos</p>
-            <p className="font-bold text-[#7cdba8]">{fmt(plan.incomeTotal)}</p>
+            <p className="font-bold text-[#7bd3a0]">{fmt(plan.incomeTotal)}</p>
             <p className="mt-0.5 text-[10px] text-white/45">
               Já {fmt(plan.incomeReceived)} · falta {fmt(plan.incomePending)}
             </p>
@@ -109,7 +109,7 @@ export function MeuMesPage() {
             <p className="text-[10px] uppercase tracking-wide text-white/50">
               − Casamento do mês
             </p>
-            <p className="font-bold text-[#f2b6c8]">{fmt(plan.weddingTotal)}</p>
+            <p className="font-bold text-[#ef9d86]">{fmt(plan.weddingTotal)}</p>
             <p className="mt-0.5 text-[10px] text-white/45">
               Falta pagar {fmt(plan.weddingPending)}
             </p>
@@ -119,7 +119,7 @@ export function MeuMesPage() {
           Vida e cartão já lançados: {fmt(plan.lifeTotal)} · depois disso sobra livre{' '}
           <span
             className={`font-bold ${
-              plan.leftoverAfterLife >= 0 ? 'text-[#7cdba8]' : 'text-[#f2b6c8]'
+              plan.leftoverAfterLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
             }`}
           >
             {fmt(plan.leftoverAfterLife)}

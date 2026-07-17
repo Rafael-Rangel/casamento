@@ -89,16 +89,16 @@ export function WeddingPage() {
           onClick={() => setShowDeficit(!showDeficit)}
           className={`rounded-2xl border p-3 text-center transition active:scale-95 ${
             deficit === 0
-              ? 'border-emerald-200 bg-emerald-50'
-              : 'border-amber-200 bg-amber-50'
+              ? 'border-emerald-500/30 bg-emerald-500/10'
+              : 'border-amber-500/30 bg-amber-500/10'
           }`}
         >
-          <p className={`text-xs ${deficit === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+          <p className={`text-xs ${deficit === 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
             {deficit === 0 ? 'Coberto!' : 'Déficit'}
           </p>
           <p
             className={`text-base font-bold ${
-              deficit === 0 ? 'text-emerald-700' : 'text-amber-700'
+              deficit === 0 ? 'text-emerald-200' : 'text-amber-200'
             }`}
           >
             {deficit === 0 ? 'R$ 0' : fmt(deficit, true)}
@@ -107,12 +107,12 @@ export function WeddingPage() {
       </div>
 
       {showDeficit && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="font-bold text-amber-800">Déficit = o buraco</p>
-          <p className="mt-1 text-sm text-amber-800/80">
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+          <p className="font-bold text-amber-200">Déficit = o buraco</p>
+          <p className="mt-1 text-sm text-amber-100/80">
             Itens flexíveis que o orçamento dos {monthCount} meses ainda não cobre.
           </p>
-          <div className="mt-3 space-y-1 rounded-xl border border-amber-100 bg-white p-3 text-sm">
+          <div className="mt-3 space-y-1 rounded-xl border border-amber-500/20 bg-[var(--surface-2)] p-3 text-sm">
             <div className="flex justify-between">
               <span className="text-[var(--ink-muted)]">Itens no plano</span>
               <span className="font-bold">{fmt(totalRemaining, true)}</span>
@@ -123,20 +123,20 @@ export function WeddingPage() {
                 {fmt(totalSavings, true)}
               </span>
             </div>
-            <div className="flex justify-between border-t border-amber-100 pt-1 font-bold">
+            <div className="flex justify-between border-t border-amber-500/20 pt-1 font-bold">
               <span>Déficit flexível</span>
-              <span className={deficit === 0 ? 'text-emerald-600' : 'text-amber-700'}>
+              <span className={deficit === 0 ? 'text-emerald-300' : 'text-amber-300'}>
                 {fmt(deficit, true)}
               </span>
             </div>
           </div>
           {unpaid.length > 0 ? (
             <div className="mt-3">
-              <p className="mb-1 text-xs font-bold text-amber-800">Sobram para depois:</p>
+              <p className="mb-1 text-xs font-bold text-amber-200">Sobram para depois:</p>
               {unpaid.map((u) => (
                 <div
                   key={u.name}
-                  className="flex justify-between py-0.5 text-xs text-amber-800"
+                  className="flex justify-between py-0.5 text-xs text-amber-100/90"
                 >
                   <span>{u.name}</span>
                   <span className="font-bold">falta {fmt(u.remaining, true)}</span>
@@ -144,7 +144,7 @@ export function WeddingPage() {
               ))}
             </div>
           ) : (
-            <p className="mt-3 text-xs font-semibold text-emerald-700">
+            <p className="mt-3 text-xs font-semibold text-emerald-300">
               Tudo coberto com esse orçamento!
             </p>
           )}
@@ -164,7 +164,7 @@ export function WeddingPage() {
             onClick={() => setTab(id)}
             className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition ${
               tab === id
-                ? 'bg-[var(--ink)] text-white shadow'
+                ? 'bg-[var(--rose)] text-white shadow'
                 : 'border border-[var(--line)] bg-[var(--surface)] text-[var(--ink-muted)]'
             }`}
           >
@@ -244,7 +244,7 @@ export function WeddingPage() {
                     onClick={() => toggleWeddingCheck(m.short, p.name)}
                     className={`flex w-full items-center justify-between rounded-xl p-2 text-left transition active:scale-[0.99] ${
                       done
-                        ? 'border border-emerald-200 bg-emerald-50'
+                        ? 'border border-emerald-500/30 bg-emerald-500/10'
                         : 'border border-transparent bg-[var(--surface-2)] hover:border-[var(--line)]'
                     }`}
                   >
@@ -253,14 +253,14 @@ export function WeddingPage() {
                         className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 ${
                           done
                             ? 'border-emerald-500 bg-emerald-500 text-white'
-                            : 'border-gray-300'
+                            : 'border-[var(--ink-faint)]'
                         }`}
                       >
                         {done && <span className="text-xs font-bold">✓</span>}
                       </div>
                       <span
                         className={`flex-shrink-0 rounded-full px-2 py-0.5 text-xs ${
-                          TAG_COLORS[p.tag] || 'bg-gray-100 text-gray-700'
+                          TAG_COLORS[p.tag] || 'bg-white/10 text-[var(--ink-soft)]'
                         }`}
                       >
                         {TAG_LABEL[p.tag] || p.tag}
@@ -275,7 +275,7 @@ export function WeddingPage() {
                     </div>
                     <span
                       className={`ml-2 flex-shrink-0 text-sm font-semibold ${
-                        done ? 'text-emerald-500' : 'text-[var(--ink)]'
+                        done ? 'text-emerald-300' : 'text-[var(--ink)]'
                       }`}
                     >
                       {fmt(p.amount, true)}
@@ -286,8 +286,8 @@ export function WeddingPage() {
             </div>
 
             {paidTotal === monthTotal && monthTotal > 0 && (
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-center">
-                <span className="text-sm font-bold text-emerald-700">
+              <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2 text-center">
+                <span className="text-sm font-bold text-emerald-300">
                   Mês {m.short} totalmente marcado!
                 </span>
               </div>

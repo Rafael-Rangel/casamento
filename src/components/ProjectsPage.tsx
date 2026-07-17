@@ -249,7 +249,7 @@ export function ProjectsPage() {
                   onClick={() => applyPreset(mode)}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                     splitMode === mode
-                      ? 'bg-[var(--ink)] text-white'
+                      ? 'bg-[var(--rose)] text-white'
                       : 'bg-[var(--surface)] text-[var(--ink-muted)] border border-[var(--line)]'
                   }`}
                 >

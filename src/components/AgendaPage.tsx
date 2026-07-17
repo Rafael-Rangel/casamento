@@ -182,7 +182,7 @@ export function AgendaPage() {
             onClick={() => setFilter(id)}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
               filter === id
-                ? 'bg-[var(--ink)] text-white'
+                ? 'bg-[var(--rose)] text-white'
                 : 'border border-[var(--line)] bg-[var(--surface)] text-[var(--ink-muted)]'
             }`}
           >
@@ -245,7 +245,7 @@ export function AgendaPage() {
                       </span>
                     )}
                     {futureBadge && (
-                      <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
                         {futureBadge}
                       </span>
                     )}
@@ -272,8 +272,8 @@ export function AgendaPage() {
                       className={`flex items-start justify-between gap-3 rounded-xl px-3 py-2 ${
                         day.isPast || day.isToday
                           ? e.direction === 'in'
-                            ? 'bg-emerald-50'
-                            : 'bg-orange-50'
+                            ? 'bg-emerald-500/10'
+                            : 'bg-orange-500/10'
                           : 'bg-[var(--surface-2)]'
                       }`}
                     >
@@ -282,8 +282,8 @@ export function AgendaPage() {
                           <span
                             className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                               e.direction === 'in'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-orange-100 text-orange-800'
+                                ? 'bg-emerald-500/15 text-emerald-300'
+                                : 'bg-orange-500/15 text-orange-300'
                             }`}
                           >
                             {KIND_LABEL[e.kind]}

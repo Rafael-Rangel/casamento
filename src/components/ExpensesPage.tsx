@@ -121,7 +121,7 @@ export function ExpensesPage() {
                   <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold">
                     {KIND_LABEL[e.kind]}
                   </span>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[var(--ink-muted)] border border-[var(--line)]">
+                  <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)] border border-[var(--line)]">
                     {(e.purpose || 'life') === 'life' ? 'Vida/cartão' : 'Casamento'}
                   </span>
                 </div>

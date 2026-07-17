@@ -75,14 +75,14 @@ export function createWeddingState(): WeddingState {
 }
 
 export const TAG_COLORS: Record<string, string> = {
-  salão: 'bg-rose-100 text-rose-800',
-  noiva: 'bg-pink-100 text-pink-800',
-  foto: 'bg-sky-100 text-sky-800',
-  casamento: 'bg-fuchsia-100 text-fuchsia-800',
-  casa: 'bg-amber-100 text-amber-800',
-  luademel: 'bg-cyan-100 text-cyan-800',
-  convites: 'bg-emerald-100 text-emerald-800',
-  obra: 'bg-orange-100 text-orange-800',
+  salão: 'bg-rose-500/15 text-rose-300',
+  noiva: 'bg-pink-500/15 text-pink-300',
+  foto: 'bg-sky-500/15 text-sky-300',
+  casamento: 'bg-fuchsia-500/15 text-fuchsia-300',
+  casa: 'bg-amber-500/15 text-amber-300',
+  luademel: 'bg-cyan-500/15 text-cyan-300',
+  convites: 'bg-emerald-500/15 text-emerald-300',
+  obra: 'bg-orange-500/15 text-orange-300',
 }
 
 export const TAG_LABEL: Record<string, string> = {
