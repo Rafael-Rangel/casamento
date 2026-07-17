@@ -1,6 +1,14 @@
-import { createInitialState, STORAGE_KEY } from './defaults'
+import { createInitialState, seedProjects, SEED_VERSION, STORAGE_KEY } from './defaults'
 import { createWeddingState } from './wedding'
-import type { Expense, FinanceState } from '../types/finance'
+import type { Expense, FinanceState, Project } from '../types/finance'
+
+/** Injeta projetos-semente ausentes (por id) uma única vez por versão de semente */
+function applyProjectSeed(projects: Project[], seedVersion: number | undefined): Project[] {
+  if (seedVersion !== undefined && seedVersion >= SEED_VERSION) return projects
+  const existingIds = new Set(projects.map((p) => p.id))
+  const missing = seedProjects().filter((p) => !existingIds.has(p.id))
+  return [...projects, ...missing]
+}
 
 export function loadState(): FinanceState {
   try {
@@ -12,6 +20,8 @@ export function loadState(): FinanceState {
       ...base,
       ...parsed,
       categories: parsed.categories?.length ? parsed.categories : base.categories,
+      projects: applyProjectSeed(parsed.projects ?? base.projects, parsed.seedVersion),
+      seedVersion: SEED_VERSION,
       wedding: {
         ...createWeddingState(),
         ...(parsed.wedding || {}),

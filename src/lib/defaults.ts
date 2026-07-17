@@ -1,6 +1,70 @@
-import type { Category, Expense, FinanceState } from '../types/finance'
+import type { Category, Expense, FinanceState, Project } from '../types/finance'
 import { uid } from './format'
 import { createWeddingState } from './wedding'
+
+/** Sobe este número sempre que a semente de projetos mudar */
+export const SEED_VERSION = 1
+
+/** Projetos KoruVision pré-cadastrados (IDs estáveis p/ semente única) */
+export function seedProjects(): Project[] {
+  return [
+    {
+      id: 'seed-landing-mia-flor',
+      name: 'Landing Page',
+      client: 'Mia Fllor',
+      closeDate: '2026-07-13',
+      totalValue: 950,
+      installments: [{ id: 'seed-landing-1', amount: 950, date: '2026-07-13' }],
+      hasMonthly: true,
+      monthlyAmount: 300,
+      monthlyStart: '2026-08-13',
+      monthlyEnd: null,
+      notes: '',
+    },
+    {
+      id: 'seed-ecommerce-mia-flor',
+      name: 'Ecommerce',
+      client: 'Mia Fllor',
+      closeDate: '2026-07-13',
+      totalValue: 2500,
+      installments: [{ id: 'seed-ecommerce-1', amount: 2500, date: '2026-07-13' }],
+      hasMonthly: true,
+      monthlyAmount: 650,
+      monthlyStart: '2026-10-13',
+      monthlyEnd: null,
+      notes: '',
+    },
+    {
+      id: 'seed-crm-mia-flor',
+      name: 'CRM',
+      client: 'Mia Fllor',
+      closeDate: '2026-07-13',
+      totalValue: 0,
+      installments: [{ id: 'seed-crm-1', amount: 0, date: '2026-07-13' }],
+      hasMonthly: true,
+      monthlyAmount: 200,
+      monthlyStart: '2026-08-10',
+      monthlyEnd: null,
+      notes: '',
+    },
+    {
+      id: 'seed-website-power-volts',
+      name: 'Website',
+      client: 'Power Volts',
+      closeDate: '2026-07-20',
+      totalValue: 3490,
+      installments: [
+        { id: 'seed-website-1', amount: 1745, date: '2026-07-20' },
+        { id: 'seed-website-2', amount: 1745, date: '2026-08-20' },
+      ],
+      hasMonthly: true,
+      monthlyAmount: 600,
+      monthlyStart: '2026-08-20',
+      monthlyEnd: null,
+      notes: '',
+    },
+  ]
+}
 
 export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'moradia', name: 'Moradia', color: '#9B4D6A' },
@@ -49,7 +113,7 @@ export function createInitialState(): FinanceState {
         active: true,
       },
     ],
-    projects: [],
+    projects: seedProjects(),
     expenses: [
       lifeExpense('Gastos pessoais / custo de vida', 2320, 'outros', {
         notes: 'Moradia, comida, transporte e o essencial do dia a dia',
@@ -59,6 +123,7 @@ export function createInitialState(): FinanceState {
     categories: [...DEFAULT_CATEGORIES],
     projectionMonths: 12,
     wedding: createWeddingState(),
+    seedVersion: SEED_VERSION,
   }
 }
 

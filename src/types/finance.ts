@@ -99,6 +99,8 @@ export interface FinanceState {
   categories: Category[]
   projectionMonths: number
   wedding: WeddingState
+  /** Controle de sementes já aplicadas (ex.: projetos KoruVision) */
+  seedVersion?: number
 }
 
 export type EntryKind =
