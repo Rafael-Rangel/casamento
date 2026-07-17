@@ -8,12 +8,14 @@ import {
   CircleDollarSign,
   Heart,
   CalendarDays,
+  Home,
   RotateCcw,
 } from 'lucide-react'
 import { FinanceProvider, useFinance } from './context/FinanceContext'
 import { Dashboard } from './components/Dashboard'
 import { WeddingPage } from './components/WeddingPage'
 import { AgendaPage } from './components/AgendaPage'
+import { MeuMesPage } from './components/MeuMesPage'
 import { SalariesPage } from './components/SalariesPage'
 import { ProjectsPage } from './components/ProjectsPage'
 import { ExpensesPage } from './components/ExpensesPage'
@@ -22,6 +24,7 @@ import { TimelinePage } from './components/TimelinePage'
 import { Button } from './components/ui'
 
 type Tab =
+  | 'meumes'
   | 'wedding'
   | 'agenda'
   | 'dashboard'
@@ -32,18 +35,19 @@ type Tab =
   | 'other'
 
 const NAV: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'wedding', label: 'Casamento', icon: Heart },
+  { id: 'meumes', label: 'Meu mês', icon: Home },
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+  { id: 'wedding', label: 'Casamento', icon: Heart },
+  { id: 'projects', label: 'Projetos', icon: Briefcase },
+  { id: 'salaries', label: 'Salários', icon: Wallet },
+  { id: 'expenses', label: 'Vida & cartão', icon: Receipt },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'timeline', label: 'Linha do tempo', icon: CalendarRange },
-  { id: 'salaries', label: 'Salários', icon: Wallet },
-  { id: 'projects', label: 'Projetos', icon: Briefcase },
-  { id: 'expenses', label: 'Vida & cartão', icon: Receipt },
   { id: 'other', label: 'Outras receitas', icon: CircleDollarSign },
 ]
 
 function Shell() {
-  const [tab, setTab] = useState<Tab>('wedding')
+  const [tab, setTab] = useState<Tab>('meumes')
   const { resetAll } = useFinance()
 
   return (
@@ -54,7 +58,9 @@ function Shell() {
             <p className="font-display text-2xl font-extrabold tracking-tight text-[var(--ink)]">
               Casamento
             </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">12/12/2026 · plano financeiro</p>
+            <p className="mt-1 text-xs text-[var(--ink-muted)]">
+              Entra · paga · sobra pra você
+            </p>
           </div>
           <nav className="space-y-1">
             {NAV.map((item) => (
@@ -87,6 +93,7 @@ function Shell() {
       </aside>
 
       <main className="min-w-0 flex-1">
+        {tab === 'meumes' && <MeuMesPage />}
         {tab === 'wedding' && <WeddingPage />}
         {tab === 'agenda' && <AgendaPage />}
         {tab === 'dashboard' && <Dashboard />}
@@ -99,7 +106,7 @@ function Shell() {
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-lg justify-between gap-0.5 overflow-x-auto px-1 py-2">
-          {NAV.map((item) => (
+          {NAV.slice(0, 6).map((item) => (
             <button
               key={item.id}
               type="button"
