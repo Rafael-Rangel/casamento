@@ -53,6 +53,9 @@ function Shell() {
             <p className="mt-1 text-xs text-[var(--ink-muted)]">
               Recebe · casamento · sobra pra viver
             </p>
+            <p className="mt-2 rounded-lg bg-[var(--surface-2)] px-2 py-1.5 text-[10px] font-medium leading-snug text-[var(--ink-muted)]">
+              ✓ Salvo automaticamente neste navegador
+            </p>
           </div>
           <nav className="space-y-1">
             {NAV.map((item) => (

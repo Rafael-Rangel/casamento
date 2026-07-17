@@ -81,9 +81,10 @@ export function MeuMesPage() {
         <h1 className="font-display text-3xl font-extrabold text-[var(--ink)]">
           {capitalize(plan.monthLabel)}
         </h1>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Recebemos (salários + projetos) − gastos do casamento = sobra para vida e cartão.
-        </p>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            Recebemos − casamento = sobra para vida e cartão. Tudo que você editar fica
+            salvo neste aparelho.
+          </p>
       </header>
 
       <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg">
