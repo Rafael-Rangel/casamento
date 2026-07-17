@@ -97,8 +97,8 @@ export function WeddingPage() {
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <p className="mb-2 text-sm font-bold text-[var(--ink)]">Sobra para o casamento</p>
         <p className="text-xs text-[var(--ink-muted)]">
-          Receitas futuras (salário + projetos) − gastos da vida, somando o saldo em caixa
-          de julho.
+          Em julho: saldo em caixa + o que ainda vai cair (com data) − o que ainda falta
+          pagar. Ex.: Power Volts só conta no dia 20.
         </p>
         <div className="mt-3 flex justify-between text-sm">
           <span className="text-[var(--ink-muted)]">Saldo em caixa (17/07)</span>

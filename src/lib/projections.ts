@@ -20,6 +20,7 @@ import type {
   SalarySource,
 } from '../types/finance'
 import { implementationIncome, monthlyYourShare } from './projectShare'
+import { collectAgendaEvents } from './agenda'
 
 function monthKey(d: Date) {
   return format(d, 'yyyy-MM')
@@ -253,7 +254,7 @@ export function buildProjections(
 }
 
 /** Sobra mensal Jun–Dez/2026 para alimentar o cronograma do casamento */
-export function weddingMonthBudgets(state: FinanceState): number[] {
+export function weddingMonthBudgets(state: FinanceState, today: Date = new Date()): number[] {
   const keys = [
     '2026-06',
     '2026-07',
@@ -269,12 +270,40 @@ export function weddingMonthBudgets(state: FinanceState): number[] {
   const byKey = Object.fromEntries(all.map((p) => [p.key, p.weddingBudget]))
   const budgets = keys.map((k) => byKey[k] ?? 0)
 
-  // Saldo em caixa entra no mês da data de referência (ex.: 17/07 → julho)
+  const todayKey = format(today, 'yyyy-MM')
   const cash = state.cashBalance
-  if (cash?.amount && cash.asOf) {
-    const cashKey = cash.asOf.slice(0, 7)
-    const idx = keys.indexOf(cashKey)
-    if (idx >= 0) budgets[idx] += cash.amount
+  const cashMonth = cash?.asOf?.slice(0, 7)
+
+  // Mês do saldo em caixa: usa o dinheiro real + o que ainda falta entrar − o que ainda falta sair
+  if (cash && cashMonth && keys.includes(cashMonth)) {
+    const idx = keys.indexOf(cashMonth)
+    const monthStart = parseISO(`${cashMonth}-01`)
+    const monthEnd = endOfMonth(monthStart)
+    const events = collectAgendaEvents(state, monthStart, monthEnd)
+    const day = format(today, 'yyyy-MM-dd')
+
+    let pendingIn = 0
+    let pendingLifeOut = 0
+    for (const e of events) {
+      if (e.date <= day) continue
+      if (e.direction === 'in') pendingIn += e.amount
+      else if (e.kind === 'expense') pendingLifeOut += e.amount
+    }
+
+    // Não soma a projeção cheia do mês (evita contar de novo o que já está no caixa)
+    budgets[idx] = Math.max(0, cash.amount + pendingIn - pendingLifeOut)
+  } else if (cash?.amount && cashMonth && keys.includes(cashMonth)) {
+    const idx = keys.indexOf(cashMonth)
+    budgets[idx] += cash.amount
+  }
+
+  // Meses futuros depois do caixa: mantém projeção normal
+  // Meses passados antes do caixa: zera sobra residual (já foi consumida no caixa)
+  if (cashMonth && keys.includes(cashMonth)) {
+    const cashIdx = keys.indexOf(cashMonth)
+    for (let i = 0; i < cashIdx; i++) {
+      if (keys[i] < todayKey || keys[i] < cashMonth) budgets[i] = 0
+    }
   }
 
   return budgets

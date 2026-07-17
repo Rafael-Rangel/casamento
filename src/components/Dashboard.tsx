@@ -22,6 +22,7 @@ import {
   upcomingExpenses,
   upcomingIncomes,
 } from '../lib/projections'
+import { cashflowSnapshot } from '../lib/agenda'
 import { capitalize, fmt } from '../lib/format'
 import { Money } from './ui'
 
@@ -36,12 +37,7 @@ export function Dashboard() {
   const nextIn = upcomingIncomes(projections, 5)
   const nextOut = upcomingExpenses(projections, 5)
   const monthlyFees = futureMonthlyFees(state)
-
-  const totals = useMemo(() => {
-    const income = projections.reduce((s, m) => s + m.totalIncome, 0)
-    const expense = projections.reduce((s, m) => s + m.totalExpense, 0)
-    return { income, expense, balance: income - expense }
-  }, [projections])
+  const snap = useMemo(() => cashflowSnapshot(state, new Date(), 2), [state])
 
   const chartData = projections.map((m) => ({
     name: capitalize(m.short),
@@ -74,9 +70,6 @@ export function Dashboard() {
 
   if (!current) return null
 
-  const spendable = Math.max(0, current.balance)
-  const investable = Math.max(0, current.balance * 0.3)
-
   return (
     <div ref={root} className="space-y-6">
       <header className="relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
@@ -87,8 +80,8 @@ export function Dashboard() {
             Casamento
           </p>
           <p className="mt-3 max-w-md text-base text-white/70">
-            Plano financeiro até 12/12/2026 — salário, projetos, cartão e gastos da vida
-            alimentam a sobra do casamento.
+            Conta por data: o que já caiu até hoje e o que ainda vai entrar (ex.: Power Volts
+            no dia 20).
           </p>
           <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-pink-100 backdrop-blur">
             <CalendarDays size={16} />
@@ -106,22 +99,22 @@ export function Dashboard() {
             tone: 'accent' as const,
           },
           {
-            label: 'Receita do mês',
-            value: current.totalIncome,
+            label: 'Já recebido até hoje',
+            value: snap.receivedUntilToday,
             icon: ArrowUpRight,
             tone: 'positive' as const,
           },
           {
-            label: 'Gastos do mês',
-            value: current.totalExpense,
-            icon: ArrowDownRight,
-            tone: 'negative' as const,
+            label: 'Ainda a receber',
+            value: snap.pendingIncome,
+            icon: ArrowUpRight,
+            tone: 'positive' as const,
           },
           {
-            label: 'Saldo do mês',
-            value: current.balance,
-            icon: Wallet,
-            tone: current.balance >= 0 ? ('positive' as const) : ('negative' as const),
+            label: 'Ainda a pagar',
+            value: snap.pendingExpense,
+            icon: ArrowDownRight,
+            tone: 'negative' as const,
           },
           {
             label: 'Receita recorrente',
@@ -148,21 +141,24 @@ export function Dashboard() {
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="dash-panel rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Ainda posso gastar
+            Caixa + a receber − a pagar
           </p>
-          <Money value={spendable} className="mt-1 block text-xl" />
+          <Money
+            value={(state.cashBalance?.amount ?? 0) + snap.pendingIncome - snap.pendingExpense}
+            className="mt-1 block text-xl"
+          />
         </div>
         <div className="dash-panel rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Sugestão para investir (30%)
+            Receita total do mês (com datas futuras)
           </p>
-          <Money value={investable} className="mt-1 block text-xl" />
+          <Money value={snap.thisMonthIn} className="mt-1 block text-xl" />
         </div>
         <div className="dash-panel rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Projeção {state.projectionMonths} meses
+            Despesas do mês (com datas futuras)
           </p>
-          <Money value={totals.balance} className="mt-1 block text-xl" />
+          <Money value={-snap.thisMonthOut} className="mt-1 block text-xl" />
         </div>
       </div>
 

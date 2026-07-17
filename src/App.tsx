@@ -7,11 +7,13 @@ import {
   Wallet,
   CircleDollarSign,
   Heart,
+  CalendarDays,
   RotateCcw,
 } from 'lucide-react'
 import { FinanceProvider, useFinance } from './context/FinanceContext'
 import { Dashboard } from './components/Dashboard'
 import { WeddingPage } from './components/WeddingPage'
+import { AgendaPage } from './components/AgendaPage'
 import { SalariesPage } from './components/SalariesPage'
 import { ProjectsPage } from './components/ProjectsPage'
 import { ExpensesPage } from './components/ExpensesPage'
@@ -21,6 +23,7 @@ import { Button } from './components/ui'
 
 type Tab =
   | 'wedding'
+  | 'agenda'
   | 'dashboard'
   | 'timeline'
   | 'salaries'
@@ -30,6 +33,7 @@ type Tab =
 
 const NAV: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'wedding', label: 'Casamento', icon: Heart },
+  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'timeline', label: 'Linha do tempo', icon: CalendarRange },
   { id: 'salaries', label: 'Salários', icon: Wallet },
@@ -84,6 +88,7 @@ function Shell() {
 
       <main className="min-w-0 flex-1">
         {tab === 'wedding' && <WeddingPage />}
+        {tab === 'agenda' && <AgendaPage />}
         {tab === 'dashboard' && <Dashboard />}
         {tab === 'timeline' && <TimelinePage />}
         {tab === 'salaries' && <SalariesPage />}
