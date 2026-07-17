@@ -152,7 +152,7 @@ function CloudAccess() {
         <input
           autoFocus
           inputMode="numeric"
-          type="password"
+          type="number"
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="Código de acesso"
