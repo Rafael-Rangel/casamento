@@ -1,9 +1,39 @@
-import type { Category, Expense, FinanceState, Project } from '../types/finance'
+import type {
+  Category,
+  Expense,
+  FinanceState,
+  Project,
+  SalarySource,
+} from '../types/finance'
 import { uid } from './format'
 import { createWeddingState } from './wedding'
 
-/** Sobe este número sempre que a semente de projetos mudar */
-export const SEED_VERSION = 1
+export const PROJECT_SEED_VERSION = 1
+export const SALARY_SEED_VERSION = 2
+export const SEED_VERSION = SALARY_SEED_VERSION
+
+export function seedSalaries(): SalarySource[] {
+  return [
+    {
+      id: 'seed-salary-genesis',
+      name: 'Gênesis',
+      amount: 4000,
+      payDay: 10,
+      startDate: '2026-01-01',
+      endDate: null,
+      active: true,
+    },
+    {
+      id: 'seed-salary-brixclub',
+      name: 'BrixClub',
+      amount: 200,
+      payDay: 10,
+      startDate: '2026-01-01',
+      endDate: null,
+      active: true,
+    },
+  ]
+}
 
 /** Projetos KoruVision pré-cadastrados (IDs estáveis p/ semente única) */
 export function seedProjects(): Project[] {
@@ -102,17 +132,7 @@ function lifeExpense(
 
 export function createInitialState(): FinanceState {
   return {
-    salaries: [
-      {
-        id: uid(),
-        name: 'Gênesis',
-        amount: 8800,
-        payDay: 5,
-        startDate: '2026-01-01',
-        endDate: null,
-        active: true,
-      },
-    ],
+    salaries: seedSalaries(),
     projects: seedProjects(),
     expenses: [
       lifeExpense('Gastos pessoais / custo de vida', 2320, 'outros', {

@@ -1,13 +1,45 @@
-import { createInitialState, seedProjects, SEED_VERSION, STORAGE_KEY } from './defaults'
+import {
+  createInitialState,
+  PROJECT_SEED_VERSION,
+  SALARY_SEED_VERSION,
+  seedProjects,
+  seedSalaries,
+  SEED_VERSION,
+  STORAGE_KEY,
+} from './defaults'
 import { createWeddingState } from './wedding'
-import type { Expense, FinanceState, Project } from '../types/finance'
+import type { Expense, FinanceState, Project, SalarySource } from '../types/finance'
 
 /** Injeta projetos-semente ausentes (por id) uma única vez por versão de semente */
 function applyProjectSeed(projects: Project[], seedVersion: number | undefined): Project[] {
-  if (seedVersion !== undefined && seedVersion >= SEED_VERSION) return projects
+  if (seedVersion !== undefined && seedVersion >= PROJECT_SEED_VERSION) return projects
   const existingIds = new Set(projects.map((p) => p.id))
   const missing = seedProjects().filter((p) => !existingIds.has(p.id))
   return [...projects, ...missing]
+}
+
+function applySalarySeed(
+  salaries: SalarySource[],
+  seedVersion: number | undefined,
+): SalarySource[] {
+  if (seedVersion !== undefined && seedVersion >= SALARY_SEED_VERSION) return salaries
+
+  const seeds = seedSalaries()
+  const byName = new Map(seeds.map((salary) => [salary.name.toLocaleLowerCase('pt-BR'), salary]))
+  const found = new Set<string>()
+
+  const migrated = salaries.map((salary) => {
+    const key = salary.name.trim().toLocaleLowerCase('pt-BR')
+    const seed = byName.get(key)
+    if (!seed) return salary
+    found.add(key)
+    return { ...salary, ...seed, id: salary.id }
+  })
+
+  return [
+    ...migrated,
+    ...seeds.filter((salary) => !found.has(salary.name.toLocaleLowerCase('pt-BR'))),
+  ]
 }
 
 export function loadState(): FinanceState {
@@ -20,6 +52,7 @@ export function loadState(): FinanceState {
       ...base,
       ...parsed,
       categories: parsed.categories?.length ? parsed.categories : base.categories,
+      salaries: applySalarySeed(parsed.salaries ?? base.salaries, parsed.seedVersion),
       projects: applyProjectSeed(parsed.projects ?? base.projects, parsed.seedVersion),
       seedVersion: SEED_VERSION,
       wedding: {
