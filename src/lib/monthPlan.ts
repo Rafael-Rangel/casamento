@@ -56,9 +56,9 @@ export interface MonthPlan {
   /** Tudo que precisa pagar no mês */
   mustPayTotal: number
   mustPayPending: number
-  /** Receita − gastos do casamento = sobra para vida e cartão */
+  /** Receita − o que AINDA falta do casamento (checks reduzem) */
   leftoverForLife: number
-  /** Sobra final (vida/cartão) depois de descontar as despesas de vida já lançadas */
+  /** Sobra após vida/cartão ainda pendente */
   leftoverAfterLife: number
   /** Sobra pra você depois de pagar tudo do mês */
   leftoverForMe: number
@@ -195,10 +195,10 @@ export function buildMonthPlan(state: FinanceState, today: Date = new Date()): M
   const mustPayPending = lifePending + weddingPending
 
   const cashNow = state.cashBalance?.amount ?? 0
-  // Foco: receita − gastos do casamento = quanto sobra para vida e cartão
-  const leftoverForLife = incomeTotal - weddingTotal
-  const leftoverAfterLife = leftoverForLife - lifeTotal
-  const leftoverForMe = cashNow + incomeTotal - mustPayTotal
+  // Sobra olhando o que AINDA falta pagar do casamento (checks reduzem)
+  const leftoverForLife = incomeTotal - weddingPending
+  const leftoverAfterLife = leftoverForLife - lifePending
+  const leftoverForMe = cashNow + incomeTotal - (lifeTotal + weddingTotal)
   const leftoverFromNow = cashNow + incomePending - mustPayPending
 
   const byDate = new Map<string, { receive: MonthObligation[]; pay: MonthObligation[] }>()

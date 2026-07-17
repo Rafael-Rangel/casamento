@@ -82,8 +82,7 @@ export function MeuMesPage() {
           {capitalize(plan.monthLabel)}
         </h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Recebemos − casamento = sobra para vida e cartão. Tudo que você editar fica
-            salvo neste aparelho.
+            Recebemos − o que ainda falta do casamento = sobra. Marcar ✓ reduz o que falta.
           </p>
       </header>
 
@@ -108,16 +107,16 @@ export function MeuMesPage() {
           </div>
           <div className="rounded-xl bg-white/10 px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-white/50">
-              − Casamento do mês
+              − Ainda falta do casamento
             </p>
-            <p className="font-bold text-[#ef9d86]">{fmt(plan.weddingTotal)}</p>
+            <p className="font-bold text-[#ef9d86]">{fmt(plan.weddingPending)}</p>
             <p className="mt-0.5 text-[10px] text-white/45">
-              Falta pagar {fmt(plan.weddingPending)}
+              Plano do mês {fmt(plan.weddingTotal)} · já marcado {fmt(plan.weddingPaid)}
             </p>
           </div>
         </div>
         <p className="mt-3 text-xs text-white/55">
-          Vida e cartão já lançados: {fmt(plan.lifeTotal)} · depois disso sobra livre{' '}
+          Depois da vida/cartão ainda pendente ({fmt(plan.lifePending)}), sobra livre{' '}
           <span
             className={`font-bold ${
               plan.leftoverAfterLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
@@ -132,21 +131,24 @@ export function MeuMesPage() {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-bold">Casamento por categoria</h2>
-            <p className="text-xs text-[var(--ink-muted)]">Onde o dinheiro do mês vai</p>
+            <p className="text-xs text-[var(--ink-muted)]">O que ainda falta pagar</p>
           </div>
-          <Money value={-plan.weddingTotal} />
+          <Money value={-plan.weddingPending} />
         </div>
-        {plan.weddingByCategory.length === 0 ? (
-          <p className="text-sm text-[var(--ink-muted)]">Nada do casamento neste mês.</p>
+        {plan.weddingByCategory.filter((c) => c.pending > 0).length === 0 ? (
+          <p className="text-sm text-[var(--ink-muted)]">Nada pendente do casamento neste mês.</p>
         ) : (
           <ul className="space-y-2">
-            {plan.weddingByCategory.map((c) => {
-              const pct = plan.weddingTotal > 0 ? (c.total / plan.weddingTotal) * 100 : 0
+            {plan.weddingByCategory
+              .filter((c) => c.pending > 0)
+              .map((c) => {
+              const pct =
+                plan.weddingPending > 0 ? (c.pending / plan.weddingPending) * 100 : 0
               return (
                 <li key={c.tag}>
                   <div className="mb-1 flex items-center justify-between text-sm">
                     <span className="font-semibold text-[var(--ink)]">{c.label}</span>
-                    <span className="tabular-nums text-[var(--ink)]">{fmt(c.total)}</span>
+                    <span className="tabular-nums text-[var(--ink)]">{fmt(c.pending)}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
                     <div
@@ -154,11 +156,6 @@ export function MeuMesPage() {
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
-                  {c.pending > 0 && (
-                    <p className="mt-0.5 text-[10px] text-[var(--ink-muted)]">
-                      Falta pagar {fmt(c.pending)}
-                    </p>
-                  )}
                 </li>
               )
             })}

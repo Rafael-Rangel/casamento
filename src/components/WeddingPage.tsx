@@ -27,7 +27,7 @@ export function WeddingPage() {
     budgets.length > 0 ? budgets.reduce((a, b) => a + b, 0) / budgets.length : 0
   const monthCount = budgets.length
 
-  const { schedule, deficit, unpaid, totalRemaining, deferred } = useMemo(
+  const { schedule, unpaid, totalRemaining, deferred } = useMemo(
     () => buildWeddingSchedule(budgets, state.wedding.flexItems),
     [budgets, state.wedding.flexItems],
   )
@@ -40,6 +40,10 @@ export function WeddingPage() {
       (s, p) => (isWeddingChecked(m.short, p.name) ? s + p.amount : s),
       0,
     ) || 0
+  /** Valor em destaque: cai a cada check */
+  const stillToPay = monthTotal - paidTotal
+  /** Quanto falta ganhar a mais só para o que ainda não foi marcado */
+  const needMoreForPending = Math.max(0, stillToPay - (m?.budget ?? 0))
   const accumulated = schedule.map((_, i) =>
     budgets.slice(0, i + 1).reduce((s, b) => s + Math.max(0, b), 0),
   )
@@ -47,6 +51,14 @@ export function WeddingPage() {
   const visiblePayments =
     m?.payments.filter((p) => showPaid || !isWeddingChecked(m.short, p.name)) || []
   const hiddenPaidCount = (m?.payments.length || 0) - visiblePayments.length
+
+  /** Déficit do plano inteiro, mas só com o que ainda falta marcar em todos os meses */
+  const stillNeedAcrossMonths = schedule.reduce((sum, month) => {
+    const pending = month.payments
+      .filter((p) => !isWeddingChecked(month.short, p.name))
+      .reduce((s, p) => s + p.amount, 0)
+    return sum + Math.max(0, pending - month.budget)
+  }, 0)
 
   const alreadyPaidTotal = state.wedding.alreadyPaid.reduce((s, i) => s + i.amount, 0)
   const fixedToPay = [
@@ -121,20 +133,24 @@ export function WeddingPage() {
           type="button"
           onClick={() => setShowDeficit(!showDeficit)}
           className={`rounded-2xl border p-3 text-center transition active:scale-95 ${
-            deficit === 0
+            stillNeedAcrossMonths === 0
               ? 'border-emerald-500/30 bg-emerald-500/10'
               : 'border-amber-500/30 bg-amber-500/10'
           }`}
         >
-          <p className={`text-xs ${deficit === 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
-            {deficit === 0 ? 'Coberto!' : 'Falta ganhar'}
+          <p
+            className={`text-xs ${
+              stillNeedAcrossMonths === 0 ? 'text-emerald-300' : 'text-amber-300'
+            }`}
+          >
+            {stillNeedAcrossMonths === 0 ? 'Coberto!' : 'Falta ganhar'}
           </p>
           <p
             className={`text-base font-bold ${
-              deficit === 0 ? 'text-emerald-200' : 'text-amber-200'
+              stillNeedAcrossMonths === 0 ? 'text-emerald-200' : 'text-amber-200'
             }`}
           >
-            {deficit === 0 ? 'R$ 0' : fmt(deficit, true)}
+            {stillNeedAcrossMonths === 0 ? 'R$ 0' : fmt(stillNeedAcrossMonths, true)}
           </p>
         </button>
       </div>
@@ -143,8 +159,8 @@ export function WeddingPage() {
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
           <p className="font-bold text-amber-200">Quanto falta ganhar a mais</p>
           <p className="mt-1 text-sm text-amber-100/80">
-            Soma dos meses em que o plano fica negativo — quanto a mais você precisa
-            entrar para cobrir tudo.
+            Soma dos meses em que o que ainda falta pagar (sem check) passa do orçamento.
+            Conforme você marca ✓, esse número cai.
           </p>
           <div className="mt-3 space-y-1 rounded-xl border border-amber-500/20 bg-[var(--surface-2)] p-3 text-sm">
             <div className="flex justify-between">
@@ -158,9 +174,13 @@ export function WeddingPage() {
               </span>
             </div>
             <div className="flex justify-between border-t border-amber-500/20 pt-1 font-bold">
-              <span>Déficit flexível</span>
-              <span className={deficit === 0 ? 'text-emerald-300' : 'text-amber-300'}>
-                {fmt(deficit, true)}
+              <span>Ainda precisa ganhar a mais</span>
+              <span
+                className={
+                  stillNeedAcrossMonths === 0 ? 'text-emerald-300' : 'text-amber-300'
+                }
+              >
+                {fmt(stillNeedAcrossMonths, true)}
               </span>
             </div>
           </div>
@@ -241,20 +261,29 @@ export function WeddingPage() {
               <h2 className="font-bold text-[var(--ink)]">
                 {m.emoji} {m.label}
               </h2>
-              <span className="text-sm font-bold text-[var(--rose)]">
-                {fmt(monthTotal, true)}
-              </span>
+              <div className="text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                  Ainda a pagar
+                </p>
+                <span className="text-sm font-bold text-[var(--rose)]">
+                  {fmt(stillToPay, true)}
+                </span>
+              </div>
             </div>
             <p className="mb-3 text-xs text-[var(--ink-muted)]">
-              Orçamento: {fmt(m.budget, true)} · total do mês {fmt(monthTotal, true)}
-              {m.remainingBudget < 0 && (
+              Receita do plano: {fmt(m.budget, true)} · plano cheio {fmt(monthTotal, true)} ·
+              já marcado {fmt(paidTotal, true)}
+              {needMoreForPending > 0 ? (
                 <span className="mt-1 block font-semibold text-[var(--negative)]">
-                  Falta ganhar a mais: {fmt(-m.remainingBudget, true)}
+                  Para o que ainda falta, precisa ganhar a mais: {fmt(needMoreForPending, true)}
                 </span>
-              )}
-              {m.remainingBudget > 0 && (
-                <span className="mt-1 block text-[var(--positive)]">
-                  Sobra no plano: {fmt(m.remainingBudget, true)}
+              ) : stillToPay > 0 ? (
+                <span className="mt-1 block font-semibold text-[var(--positive)]">
+                  Orçamento cobre o que ainda falta neste mês
+                </span>
+              ) : (
+                <span className="mt-1 block font-semibold text-[var(--positive)]">
+                  Nada pendente neste mês
                 </span>
               )}
             </p>
@@ -334,7 +363,7 @@ export function WeddingPage() {
               )}
             </div>
 
-            {paidTotal === monthTotal && monthTotal > 0 && (
+            {stillToPay === 0 && monthTotal > 0 && (
               <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2 text-center">
                 <span className="text-sm font-bold text-emerald-300">
                   Mês {m.short} totalmente quitado!
