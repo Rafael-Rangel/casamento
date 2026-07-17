@@ -37,7 +37,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --nav-h: 4.25rem;
+  --nav-h: 5rem;
 }
 
 * {
@@ -89,14 +89,69 @@ body {
 }
 
 .app-nav-mobile {
-  padding-bottom: max(0.35rem, var(--safe-bottom));
+  padding-bottom: max(0.45rem, var(--safe-bottom));
   padding-left: max(0.25rem, var(--safe-left));
   padding-right: max(0.25rem, var(--safe-right));
+  pointer-events: none;
+}
+
+.app-nav-mobile .app-dock {
+  pointer-events: auto;
 }
 
 .app-nav-mobile button {
-  min-height: 2.75rem;
+  min-height: 2.85rem;
   touch-action: manipulation;
+}
+
+.app-menu-grid {
+  background-image:
+    linear-gradient(to right, #6fa8c033 1px, transparent 1px),
+    linear-gradient(to bottom, #6fa8c033 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 70%, transparent);
+}
+
+.app-menu-panel {
+  animation: app-menu-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-menu-tile {
+  animation: app-menu-fade 0.35s ease both;
+}
+
+.app-menu-tile:nth-child(1) { animation-delay: 0.04s; }
+.app-menu-tile:nth-child(2) { animation-delay: 0.07s; }
+.app-menu-tile:nth-child(3) { animation-delay: 0.1s; }
+.app-menu-tile:nth-child(4) { animation-delay: 0.13s; }
+
+@keyframes app-menu-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-menu-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-menu-panel,
+  .app-menu-tile {
+    animation: none;
+  }
 }
 
 /* Inputs maiores no touch */

@@ -14,6 +14,8 @@ import {
   CloudOff,
   Loader2,
   LockKeyhole,
+  LayoutGrid,
+  X,
 } from 'lucide-react'
 import { FinanceProvider, useFinance } from './context/FinanceContext'
 import { WeddingPage } from './components/WeddingPage'
@@ -36,16 +38,27 @@ type Tab =
   | 'timeline'
   | 'agent'
 
-const NAV: { id: Tab; label: string; short: string; icon: typeof Home }[] = [
-  { id: 'meumes', label: 'Meu mês', short: 'Mês', icon: Home },
-  { id: 'agenda', label: 'Agenda', short: 'Agenda', icon: CalendarDays },
-  { id: 'wedding', label: 'Casamento', short: 'Casório', icon: Heart },
-  { id: 'agent', label: 'Agente', short: 'Agente', icon: Bot },
-  { id: 'projects', label: 'Projetos', short: 'Projetos', icon: Briefcase },
-  { id: 'salaries', label: 'Salários', short: 'Salários', icon: Wallet },
-  { id: 'expenses', label: 'Vida e Cartão', short: 'Vida', icon: Receipt },
-  { id: 'timeline', label: 'Linha do tempo', short: 'Tempo', icon: CalendarRange },
+type NavItem = { id: Tab; label: string; short: string; hint: string; icon: typeof Home }
+
+const NAV: NavItem[] = [
+  { id: 'meumes', label: 'Meu mês', short: 'Mês', hint: 'Sobra e pendências', icon: Home },
+  { id: 'agenda', label: 'Agenda', short: 'Agenda', hint: 'Dia a dia', icon: CalendarDays },
+  { id: 'wedding', label: 'Casamento', short: 'Casório', hint: 'Cronograma', icon: Heart },
+  { id: 'agent', label: 'Agente', short: 'Agente', hint: 'Assistente IA', icon: Bot },
+  { id: 'projects', label: 'Projetos', short: 'Projetos', hint: 'Receitas de clientes', icon: Briefcase },
+  { id: 'salaries', label: 'Salários', short: 'Salários', hint: 'Fontes fixas', icon: Wallet },
+  { id: 'expenses', label: 'Vida e Cartão', short: 'Vida', hint: 'Gastos do dia a dia', icon: Receipt },
+  { id: 'timeline', label: 'Linha do tempo', short: 'Tempo', hint: 'Projeção mensal', icon: CalendarRange },
 ]
+
+const NAV_GROUPS: { title: string; ids: Tab[] }[] = [
+  { title: 'Visão', ids: ['meumes', 'agenda', 'timeline'] },
+  { title: 'Casamento', ids: ['wedding', 'agent'] },
+  { title: 'Dinheiro', ids: ['projects', 'salaries', 'expenses'] },
+]
+
+/** Atalhos fixos no dock mobile */
+const DOCK: Tab[] = ['meumes', 'agenda', 'wedding', 'expenses']
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -205,13 +218,143 @@ function CloudBadge() {
   )
 }
 
+function MobileMenu({
+  open,
+  tab,
+  onClose,
+  onSelect,
+  onReset,
+}: {
+  open: boolean
+  tab: Tab
+  onClose: () => void
+  onSelect: (id: Tab) => void
+  onReset: () => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const byId = Object.fromEntries(NAV.map((item) => [item.id, item])) as Record<Tab, NavItem>
+
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+      <button
+        type="button"
+        className="absolute inset-0 bg-[#070b10]/72 backdrop-blur-md"
+        aria-label="Fechar menu"
+        onClick={onClose}
+      />
+      <div className="app-menu-panel absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] border border-[var(--line)] border-b-0 bg-[var(--surface)]/95 shadow-2xl backdrop-blur-2xl">
+        <div className="app-menu-grid pointer-events-none absolute inset-0 opacity-[0.14]" />
+        <div className="relative px-4 pb-[max(1.25rem,var(--safe-bottom))] pt-3">
+          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">
+                Navegação
+              </p>
+              <h2 className="font-display text-2xl font-extrabold text-[var(--ink)]">Todas as seções</h2>
+              <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                Escolha um módulo — tudo sincronizado entre aparelhos.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink-muted)] transition active:scale-95"
+              aria-label="Fechar"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            {NAV_GROUPS.map((group) => (
+              <section key={group.title}>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink-faint)]">
+                  {group.title}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {group.ids.map((id) => {
+                    const item = byId[id]
+                    const active = tab === id
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onSelect(id)}
+                        className={`app-menu-tile group relative overflow-hidden rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
+                          active
+                            ? 'border-[var(--rose)]/50 bg-gradient-to-br from-[var(--rose)]/25 to-[var(--accent)]/10'
+                            : 'border-[var(--line)] bg-[var(--bg0)]/70 hover:border-[var(--accent)]/35'
+                        }`}
+                      >
+                        <div
+                          className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${
+                            active
+                              ? 'bg-[var(--rose)] text-white'
+                              : 'bg-[var(--surface-2)] text-[var(--accent)]'
+                          }`}
+                        >
+                          <item.icon size={18} strokeWidth={active ? 2.4 : 2} />
+                        </div>
+                        <p className="font-display text-sm font-bold text-[var(--ink)]">{item.label}</p>
+                        <p className="mt-0.5 text-[11px] leading-snug text-[var(--ink-muted)]">
+                          {item.hint}
+                        </p>
+                        {active && (
+                          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-[var(--rose)]" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-xs font-semibold text-[var(--ink-muted)] transition active:scale-[0.99]"
+            onClick={onReset}
+          >
+            <RotateCcw size={14} /> Resetar dados
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Shell() {
   const [tab, setTab] = useState<Tab>('meumes')
+  const [menuOpen, setMenuOpen] = useState(false)
   const { resetAll } = useFinance()
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [tab])
+
+  const go = (id: Tab) => {
+    setTab(id)
+    setMenuOpen(false)
+  }
+
+  const dockItems = DOCK.map((id) => NAV.find((n) => n.id === id)!).filter(Boolean)
+  const menuIsActive = !DOCK.includes(tab)
 
   return (
     <div className="app-shell mx-auto flex max-w-6xl flex-col gap-4 px-3 pt-3 sm:px-4 sm:pt-5 lg:flex-row lg:gap-6 lg:pb-8">
@@ -275,28 +418,62 @@ function Shell() {
       </main>
 
       <nav
-        className="app-nav-mobile fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur-xl lg:hidden"
+        className="app-nav-mobile fixed inset-x-0 bottom-0 z-40 lg:hidden"
         aria-label="Navegação principal"
       >
-        <div className="mx-auto flex max-w-lg gap-0.5 overflow-x-auto overscroll-x-contain px-1 pt-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {NAV.map((item) => (
+        <div className="app-dock mx-auto max-w-lg px-3">
+          <div className="flex items-stretch gap-1 rounded-2xl border border-white/10 bg-[var(--surface)]/90 p-1.5 shadow-[0_-8px_40px_#00000066] backdrop-blur-2xl">
+            {dockItems.map((item) => {
+              const active = tab === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => go(item.id)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-semibold transition active:scale-95 ${
+                    active
+                      ? 'bg-gradient-to-b from-[var(--rose)]/30 to-[var(--accent)]/10 text-[var(--ink)]'
+                      : 'text-[var(--ink-muted)]'
+                  }`}
+                >
+                  <item.icon size={18} strokeWidth={active ? 2.4 : 2} />
+                  <span className="truncate leading-tight">{item.short}</span>
+                </button>
+              )
+            })}
             <button
-              key={item.id}
               type="button"
-              onClick={() => setTab(item.id)}
-              aria-current={tab === item.id ? 'page' : undefined}
-              className={`flex min-w-[3.35rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[9px] font-semibold transition active:scale-95 ${
-                tab === item.id
-                  ? 'bg-[var(--accent-soft)] text-[var(--ink)]'
+              onClick={() => setMenuOpen(true)}
+              aria-expanded={menuOpen}
+              aria-label="Abrir menu de seções"
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-semibold transition active:scale-95 ${
+                menuIsActive || menuOpen
+                  ? 'bg-gradient-to-b from-[var(--accent)]/25 to-transparent text-[var(--ink)]'
                   : 'text-[var(--ink-muted)]'
               }`}
             >
-              <item.icon size={18} strokeWidth={tab === item.id ? 2.4 : 2} />
-              <span className="truncate leading-tight">{item.short}</span>
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-current/30">
+                <LayoutGrid size={12} strokeWidth={2.4} />
+              </span>
+              <span className="truncate leading-tight">Menu</span>
             </button>
-          ))}
+          </div>
         </div>
       </nav>
+
+      <MobileMenu
+        open={menuOpen}
+        tab={tab}
+        onClose={() => setMenuOpen(false)}
+        onSelect={go}
+        onReset={() => {
+          if (confirm('Resetar todos os dados para o estado inicial do casamento?')) {
+            resetAll()
+            setMenuOpen(false)
+          }
+        }}
+      />
     </div>
   )
 }
