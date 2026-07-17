@@ -9,8 +9,13 @@ import {
   SEED_VERSION,
   STORAGE_KEY,
   WEDDING_FOTO2_AUG_SEED_VERSION,
+  WEDDING_FULL_SCHEDULE_SEED_VERSION,
 } from './defaults'
-import { createWeddingState, JUNE_PAID_CHECKS } from './wedding'
+import {
+  createWeddingState,
+  DEFERRED_FLEX_IDS,
+  JUNE_PAID_CHECKS,
+} from './wedding'
 import type {
   CashBalance,
   Expense,
@@ -66,6 +71,17 @@ function applyWeddingJuneSeed(
 ): WeddingState {
   const base = createWeddingState()
   if (!wedding) return base
+
+  if (seedVersion !== undefined && seedVersion >= WEDDING_FULL_SCHEDULE_SEED_VERSION) {
+    const flexItems = (wedding.flexItems || []).filter((f) => !DEFERRED_FLEX_IDS.has(f.id))
+    return {
+      ...base,
+      ...wedding,
+      checked: wedding.checked || {},
+      flexItems: flexItems.length ? flexItems : base.flexItems,
+      alreadyPaid: wedding.alreadyPaid?.length ? wedding.alreadyPaid : base.alreadyPaid,
+    }
+  }
 
   if (seedVersion !== undefined && seedVersion >= WEDDING_FOTO2_AUG_SEED_VERSION) {
     return {

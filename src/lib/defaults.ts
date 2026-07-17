@@ -20,7 +20,9 @@ export const WEDDING_DROP_JUNE_SEED_VERSION = 6
 export const WEDDING_LABELS_SEED_VERSION = 7
 /** Fotógrafo 2ª parcela passa de julho para agosto */
 export const WEDDING_FOTO2_AUG_SEED_VERSION = 8
-export const SEED_VERSION = WEDDING_FOTO2_AUG_SEED_VERSION
+/** Todos os itens no cronograma (mesmo negativo); mobília fora do plano */
+export const WEDDING_FULL_SCHEDULE_SEED_VERSION = 9
+export const SEED_VERSION = WEDDING_FULL_SCHEDULE_SEED_VERSION
 
 export function seedCashBalance(): CashBalance {
   return {

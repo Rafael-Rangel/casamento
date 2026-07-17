@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import { weddingMonthBudgets } from '../lib/projections'
-import { buildWeddingSchedule, TAG_COLORS, TAG_LABEL } from '../lib/wedding'
+import { buildWeddingSchedule, TAG_COLORS, TAG_LABEL, activeFlexItems } from '../lib/wedding'
 import { fmt, uid } from '../lib/format'
 import type { WeddingFlexItem } from '../types/finance'
 import { Button, Field, Input, Modal, Money, Select } from './ui'
@@ -27,7 +27,7 @@ export function WeddingPage() {
     budgets.length > 0 ? budgets.reduce((a, b) => a + b, 0) / budgets.length : 0
   const monthCount = budgets.length
 
-  const { schedule, deficit, unpaid, totalRemaining } = useMemo(
+  const { schedule, deficit, unpaid, totalRemaining, deferred } = useMemo(
     () => buildWeddingSchedule(budgets, state.wedding.flexItems),
     [budgets, state.wedding.flexItems],
   )
@@ -46,7 +46,6 @@ export function WeddingPage() {
 
   const visiblePayments =
     m?.payments.filter((p) => showPaid || !isWeddingChecked(m.short, p.name)) || []
-  const pendingTotal = monthTotal - paidTotal
   const hiddenPaidCount = (m?.payments.length || 0) - visiblePayments.length
 
   const alreadyPaidTotal = state.wedding.alreadyPaid.reduce((s, i) => s + i.amount, 0)
@@ -128,7 +127,7 @@ export function WeddingPage() {
           }`}
         >
           <p className={`text-xs ${deficit === 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
-            {deficit === 0 ? 'Coberto!' : 'Déficit'}
+            {deficit === 0 ? 'Coberto!' : 'Falta ganhar'}
           </p>
           <p
             className={`text-base font-bold ${
@@ -142,9 +141,10 @@ export function WeddingPage() {
 
       {showDeficit && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="font-bold text-amber-200">Déficit = o buraco</p>
+          <p className="font-bold text-amber-200">Quanto falta ganhar a mais</p>
           <p className="mt-1 text-sm text-amber-100/80">
-            Itens flexíveis que o orçamento dos {monthCount} meses ainda não cobre.
+            Soma dos meses em que o plano fica negativo — quanto a mais você precisa
+            entrar para cobrir tudo.
           </p>
           <div className="mt-3 space-y-1 rounded-xl border border-amber-500/20 bg-[var(--surface-2)] p-3 text-sm">
             <div className="flex justify-between">
@@ -166,7 +166,7 @@ export function WeddingPage() {
           </div>
           {unpaid.length > 0 ? (
             <div className="mt-3">
-              <p className="mb-1 text-xs font-bold text-amber-200">Sobram para depois:</p>
+              <p className="mb-1 text-xs font-bold text-amber-200">Ainda não encaixados:</p>
               {unpaid.map((u) => (
                 <div
                   key={u.name}
@@ -246,7 +246,17 @@ export function WeddingPage() {
               </span>
             </div>
             <p className="mb-3 text-xs text-[var(--ink-muted)]">
-              Teto do mês: {fmt(m.budget, true)} · ainda a pagar {fmt(pendingTotal, true)}
+              Orçamento: {fmt(m.budget, true)} · total do mês {fmt(monthTotal, true)}
+              {m.remainingBudget < 0 && (
+                <span className="mt-1 block font-semibold text-[var(--negative)]">
+                  Falta ganhar a mais: {fmt(-m.remainingBudget, true)}
+                </span>
+              )}
+              {m.remainingBudget > 0 && (
+                <span className="mt-1 block text-[var(--positive)]">
+                  Sobra no plano: {fmt(m.remainingBudget, true)}
+                </span>
+              )}
             </p>
 
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -393,7 +403,7 @@ export function WeddingPage() {
               <p className="text-sm text-[var(--ink-muted)]">Nenhum item flexível.</p>
             ) : (
               <ul className="space-y-2">
-                {state.wedding.flexItems.map((item) => (
+                {activeFlexItems(state.wedding.flexItems).map((item) => (
                   <li
                     key={item.id}
                     className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2"
@@ -464,16 +474,31 @@ export function WeddingPage() {
               </div>
             ))}
             <div className="mt-2 flex justify-between border-t border-[var(--line)] pt-2 text-sm font-bold">
-              <span>Fixos + flexíveis</span>
+              <span>Fixos + flexíveis (cronograma)</span>
               <span>
                 {fmt(
                   fixedToPay.reduce((s, [, v]) => s + v, 0) +
-                    state.wedding.flexItems.reduce((s, f) => s + f.amount, 0),
+                    activeFlexItems(state.wedding.flexItems).reduce((s, f) => s + f.amount, 0),
                   true,
                 )}
               </span>
             </div>
           </div>
+
+          {deferred.length > 0 && (
+            <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-4">
+              <p className="mb-2 font-bold text-[var(--ink)]">Para depois do casamento</p>
+              <p className="mb-3 text-xs text-[var(--ink-muted)]">
+                Fora do cronograma Jul–Dez — planeja quando quiser.
+              </p>
+              {deferred.map((item) => (
+                <div key={item.id} className="flex justify-between py-1 text-sm">
+                  <span className="text-[var(--ink-muted)]">{item.name}</span>
+                  <span className="font-semibold">{fmt(item.amount, true)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

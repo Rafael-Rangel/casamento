@@ -30,8 +30,24 @@ export const DEFAULT_FLEX: WeddingFlexItem[] = [
   { id: 'terno', name: 'Terno do Noivo', amount: 1000, tag: 'casamento' },
   { id: 'buque', name: 'Buquê da Noiva', amount: 250, tag: 'noiva' },
   { id: 'lua', name: 'Lua de Mel', amount: 6000, tag: 'luademel' },
+]
+
+/** Fora do cronograma Jul–Dez (planejar depois do casamento) */
+export const DEFERRED_FLEX: WeddingFlexItem[] = [
   { id: 'mobilia', name: 'Mobília da Casa', amount: 12000, tag: 'casa' },
 ]
+
+export const DEFERRED_FLEX_IDS = new Set(DEFERRED_FLEX.map((f) => f.id))
+
+export function activeFlexItems(flexItems: WeddingFlexItem[]): WeddingFlexItem[] {
+  return flexItems.filter((f) => !DEFERRED_FLEX_IDS.has(f.id))
+}
+
+export function deferredFlexItems(flexItems: WeddingFlexItem[]): WeddingFlexItem[] {
+  const fromState = flexItems.filter((f) => DEFERRED_FLEX_IDS.has(f.id))
+  if (fromState.length > 0) return fromState
+  return DEFERRED_FLEX.map((f) => ({ ...f }))
+}
 
 /**
  * Pagamentos de junho já liquidados (histórico).
@@ -122,9 +138,11 @@ export function buildWeddingSchedule(
   flexItems: WeddingFlexItem[],
 ): {
   schedule: MonthSchedule[]
+  /** Quanto falta ganhar a mais no total (meses negativos) */
   deficit: number
   unpaid: { name: string; amount: number; remaining: number; tag: string }[]
   totalRemaining: number
+  deferred: WeddingFlexItem[]
 } {
   const budgets = Array.isArray(monthlyBudgets)
     ? WEDDING_MONTHS.map(
@@ -133,6 +151,8 @@ export function buildWeddingSchedule(
     : WEDDING_MONTHS.map(() => monthlyBudgets)
 
   const lastIdx = WEDDING_MONTHS.length - 1
+  const activeFlex = activeFlexItems(flexItems)
+  const deferred = deferredFlexItems(flexItems)
 
   const sched: MonthSchedule[] = WEDDING_MONTHS.map((m, i) => {
     const last = i === lastIdx
@@ -145,13 +165,11 @@ export function buildWeddingSchedule(
       rem -= amount
     }
 
-    // Salão: jul–nov parcela cheia; dez última. Em jul também entra o complemento de junho.
     add(last ? 'Salão (última parcela)' : 'Salão de Festas', last ? SALAO_LAST : SALAO_PM, 'salão')
     if (july) {
       add('Salão (complemento)', SALAO_JUNE_REST, 'salão')
     }
 
-    // Vestido: 1/7 já pago em junho → jul = 2/7 … dez = 7/7
     const vestidoN = i + 2
     add(
       last ? 'Vestido (7/7 · última)' : `Vestido (${vestidoN}/7)`,
@@ -177,16 +195,18 @@ export function buildWeddingSchedule(
       ...m,
       budget: budgets[i],
       payments,
-      remainingBudget: Math.max(0, rem),
+      remainingBudget: rem,
     }
   })
 
-  const flex = flexItems.map((f) => ({ ...f, paid: 0 }))
+  const flex = activeFlex.map((f) => ({ ...f, paid: 0 }))
+
+  // 1ª passada: encaixa o que couber no orçamento de cada mês
   for (let i = 0; i < sched.length; i++) {
     let budget = sched[i].remainingBudget
     for (const item of flex) {
-      if (budget <= 0) break
       if (item.paid >= item.amount) continue
+      if (budget <= 0) continue
       const needed = item.amount - item.paid
       const pay = Math.min(budget, needed)
       const done = pay >= needed
@@ -206,6 +226,23 @@ export function buildWeddingSchedule(
     sched[i].remainingBudget = budget
   }
 
+  // 2ª passada: agenda o resto nos meses mesmo sem orçamento (fica negativo)
+  let forceMonth = 0
+  for (const item of flex) {
+    if (item.paid >= item.amount) continue
+    const needed = item.amount - item.paid
+    const mi = forceMonth % sched.length
+    forceMonth++
+    const hasPartial = item.paid > 0
+    sched[mi].payments.push({
+      name: hasPartial ? `${item.name} (planejado)` : item.name,
+      amount: needed,
+      tag: item.tag,
+    })
+    sched[mi].remainingBudget -= needed
+    item.paid = item.amount
+  }
+
   const unpaid = flex
     .filter((f) => f.paid < f.amount)
     .map((f) => ({
@@ -214,18 +251,19 @@ export function buildWeddingSchedule(
       remaining: f.amount - f.paid,
       tag: f.tag,
     }))
-  const deficit = unpaid.reduce((s, f) => s + f.remaining, 0)
+
+  const deficit = sched.reduce((s, m) => s + Math.max(0, -m.remainingBudget), 0)
 
   const fixedTotal = sched.reduce(
     (s, m) =>
       s +
       m.payments
-        .filter((p) => !flexItems.some((f) => p.name.startsWith(f.name)))
+        .filter((p) => !activeFlex.some((f) => p.name.startsWith(f.name)))
         .reduce((a, p) => a + p.amount, 0),
     0,
   )
-  const flexTotal = flexItems.reduce((s, f) => s + f.amount, 0)
+  const flexTotal = activeFlex.reduce((s, f) => s + f.amount, 0)
   const totalRemaining = fixedTotal + flexTotal
 
-  return { schedule: sched, deficit, unpaid, totalRemaining }
+  return { schedule: sched, deficit, unpaid, totalRemaining, deferred }
 }
