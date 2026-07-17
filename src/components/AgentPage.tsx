@@ -1,12 +1,24 @@
 import { useMemo, useState } from 'react'
-import { Bot, Check, Loader2, Sparkles, Wand2 } from 'lucide-react'
+import { Bot, Check, Gauge, Loader2, Sparkles, Wand2 } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import type { AgentAction } from '../lib/agentActions'
 import { Button, Textarea } from './ui'
 
+interface RateLimitInfo {
+  model: string
+  plan: string
+  published: { rpm: number; rpd: number; tpm: number; tpd: number }
+  requests: { limit: number; remaining: number | null; reset: string | null }
+  tokens: { limit: number; remaining: number | null; reset: string | null }
+  lastCallTokens: number | null
+  updatedAt: string
+}
+
 interface AgentResponse {
   reply: string
   actions?: AgentAction[]
+  rateLimit?: RateLimitInfo
+  error?: string
 }
 
 interface ChatMessage {
@@ -23,6 +35,16 @@ const SUGGESTIONS = [
   'Quanto sobra se eu pagar tudo do casamento deste mês?',
   'Adicione uma despesa de vida parcelada no cartão',
 ]
+
+const DEFAULT_LIMITS: RateLimitInfo = {
+  model: 'llama-3.3-70b-versatile',
+  plan: 'free',
+  published: { rpm: 30, rpd: 1000, tpm: 12000, tpd: 100000 },
+  requests: { limit: 1000, remaining: null, reset: null },
+  tokens: { limit: 12000, remaining: null, reset: null },
+  lastCallTokens: null,
+  updatedAt: '',
+}
 
 function actionLabel(action: AgentAction) {
   switch (action.type) {
@@ -59,10 +81,135 @@ function actionLabel(action: AgentAction) {
   }
 }
 
+function meterTone(pctUsed: number) {
+  if (pctUsed >= 90) return { bar: 'bg-[var(--negative)]', text: 'text-[var(--negative)]' }
+  if (pctUsed >= 70) return { bar: 'bg-amber-400', text: 'text-amber-300' }
+  return { bar: 'bg-[var(--positive)]', text: 'text-[var(--positive)]' }
+}
+
+function UsageMeter({
+  label,
+  used,
+  limit,
+  hint,
+}: {
+  label: string
+  used: number
+  limit: number
+  hint: string
+}) {
+  const pct = limit > 0 ? Math.min(100, Math.max(0, (used / limit) * 100)) : 0
+  const tone = meterTone(pct)
+  return (
+    <div>
+      <div className="mb-1 flex items-end justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ink-muted)]">
+            {label}
+          </p>
+          <p className={`text-sm font-bold tabular-nums ${tone.text}`}>
+            {used.toLocaleString('pt-BR')} / {limit.toLocaleString('pt-BR')}
+          </p>
+        </div>
+        <p className="text-[10px] text-[var(--ink-faint)]">{Math.round(pct)}% usado</p>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+        <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-1 text-[10px] text-[var(--ink-faint)]">{hint}</p>
+    </div>
+  )
+}
+
+function LimitCard({ limits }: { limits: RateLimitInfo }) {
+  const dayLimit = limits.requests.limit || limits.published.rpd
+  const dayRemaining = limits.requests.remaining
+  const dayUsed =
+    dayRemaining === null ? 0 : Math.max(0, dayLimit - dayRemaining)
+
+  const minuteLimit = limits.tokens.limit || limits.published.tpm
+  const minuteRemaining = limits.tokens.remaining
+  const minuteUsed =
+    minuteRemaining === null ? 0 : Math.max(0, minuteLimit - minuteRemaining)
+
+  const hasLive = dayRemaining !== null || minuteRemaining !== null
+
+  return (
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div className="mb-3 flex items-start gap-2">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--rose)]">
+          <Gauge size={16} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-[var(--ink)]">Limite gratuito Groq</p>
+          <p className="text-xs text-[var(--ink-muted)]">
+            Modelo {limits.model} · plano free
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <UsageMeter
+          label="Mensagens do dia"
+          used={hasLive ? dayUsed : 0}
+          limit={dayLimit}
+          hint={
+            hasLive
+              ? `${dayRemaining?.toLocaleString('pt-BR') ?? '—'} restantes · reseta ${limits.requests.reset || 'à meia-noite UTC'}`
+              : `Até ${dayLimit.toLocaleString('pt-BR')} pedidos/dia · atualiza após a 1ª mensagem`
+          }
+        />
+        <UsageMeter
+          label="Tokens do minuto"
+          used={hasLive ? minuteUsed : 0}
+          limit={minuteLimit}
+          hint={
+            hasLive
+              ? `${minuteRemaining?.toLocaleString('pt-BR') ?? '—'} restantes · reseta em ${limits.tokens.reset || '1 min'}`
+              : `Até ${minuteLimit.toLocaleString('pt-BR')} tokens/min · conversas longas gastam mais`
+          }
+        />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-[var(--ink-faint)] sm:grid-cols-4">
+        <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5">
+          <p>RPM</p>
+          <p className="font-bold text-[var(--ink-muted)]">{limits.published.rpm}/min</p>
+        </div>
+        <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5">
+          <p>RPD</p>
+          <p className="font-bold text-[var(--ink-muted)]">{limits.published.rpd}/dia</p>
+        </div>
+        <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5">
+          <p>TPM</p>
+          <p className="font-bold text-[var(--ink-muted)]">
+            {(limits.published.tpm / 1000).toFixed(0)}k/min
+          </p>
+        </div>
+        <div className="rounded-lg bg-[var(--surface-2)] px-2 py-1.5">
+          <p>Última msg</p>
+          <p className="font-bold text-[var(--ink-muted)]">
+            {limits.lastCallTokens != null
+              ? `${limits.lastCallTokens.toLocaleString('pt-BR')} tok`
+              : '—'}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-[11px] leading-relaxed text-[var(--ink-muted)]">
+        Na prática: ~{limits.published.rpm} mensagens/minuto e até{' '}
+        {limits.published.rpd.toLocaleString('pt-BR')} no dia. Se bater o limite, a barra fica
+        laranja/vermelha e o agente pede para esperar.
+      </p>
+    </section>
+  )
+}
+
 export function AgentPage() {
   const { state, projections, runAgentActions } = useFinance()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [limits, setLimits] = useState<RateLimitInfo>(DEFAULT_LIMITS)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'hello',
@@ -101,12 +248,13 @@ export function AgentPage() {
         body: JSON.stringify({ message: text, context }),
       })
 
+      const data = (await res.json().catch(() => ({}))) as AgentResponse
+      if (data.rateLimit) setLimits(data.rateLimit)
+
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}))
-        throw new Error(error.error || 'Não consegui falar com o agente agora.')
+        throw new Error(data.error || 'Não consegui falar com o agente agora.')
       }
 
-      const data = (await res.json()) as AgentResponse
       setMessages((prev) => [
         ...prev,
         {
@@ -157,6 +305,8 @@ export function AgentPage() {
           Peça em português: “cria”, “edita”, “calcula”, “organiza” ou “personaliza”.
         </p>
       </header>
+
+      <LimitCard limits={limits} />
 
       <div className="grid gap-2 sm:grid-cols-2">
         {SUGGESTIONS.map((text) => (
@@ -231,7 +381,12 @@ export function AgentPage() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ex: cria um projeto de R$ 4.000, 50% hoje e 50% em agosto..."
         />
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="text-[10px] text-[var(--ink-faint)]">
+            {limits.requests.remaining != null
+              ? `${limits.requests.remaining} msgs restantes hoje`
+              : 'Limite atualiza após enviar'}
+          </p>
           <Button disabled={loading || !input.trim()} type="submit">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
             Enviar

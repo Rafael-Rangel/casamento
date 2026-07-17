@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -26,6 +27,11 @@ import type {
 interface FinanceContextValue {
   state: FinanceState
   projections: ReturnType<typeof buildProjections>
+  cloudStatus: 'checking' | 'locked' | 'loading' | 'synced' | 'saving' | 'offline' | 'error'
+  cloudError: string
+  cloudUpdatedAt: string
+  loginCloud: (code: string) => Promise<boolean>
+  syncNow: () => Promise<void>
   setProjectionMonths: (n: number) => void
   upsertSalary: (salary: SalarySource) => void
   removeSalary: (id: string) => void
@@ -49,10 +55,156 @@ const FinanceContext = createContext<FinanceContextValue | null>(null)
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<FinanceState>(() => loadState())
+  const [cloudStatus, setCloudStatus] =
+    useState<FinanceContextValue['cloudStatus']>('checking')
+  const [cloudError, setCloudError] = useState('')
+  const [cloudUpdatedAt, setCloudUpdatedAt] = useState('')
+  const revisionRef = useRef(0)
+  const cloudReadyRef = useRef(false)
+  const skipNextCloudSaveRef = useRef(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stateRef = useRef(state)
+  const statusRef = useRef(cloudStatus)
 
   useEffect(() => {
+    stateRef.current = state
     saveState(state)
   }, [state])
+
+  useEffect(() => {
+    statusRef.current = cloudStatus
+  }, [cloudStatus])
+
+  const applyRemoteState = useCallback((remote: FinanceState) => {
+    skipNextCloudSaveRef.current = true
+    setState(remote)
+  }, [])
+
+  const pushCloudState = useCallback(async (nextState: FinanceState) => {
+    setCloudStatus('saving')
+    setCloudError('')
+    try {
+      let response = await fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: nextState, baseRevision: revisionRef.current }),
+      })
+
+      if (response.status === 409) {
+        const conflict = await response.json()
+        const latestRevision = Number(conflict.current?.revision) || revisionRef.current
+        response = await fetch('/api/state', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: nextState, baseRevision: latestRevision }),
+        })
+      }
+
+      if (response.status === 401) {
+        cloudReadyRef.current = false
+        setCloudStatus('locked')
+        return
+      }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || 'Não foi possível salvar na nuvem.')
+      }
+
+      const cloud = await response.json()
+      revisionRef.current = Number(cloud.revision) || revisionRef.current
+      setCloudUpdatedAt(String(cloud.updatedAt || ''))
+      setCloudStatus('synced')
+    } catch (err) {
+      setCloudError(err instanceof Error ? err.message : 'Erro de sincronização.')
+      setCloudStatus(navigator.onLine ? 'error' : 'offline')
+    }
+  }, [])
+
+  const loadCloudState = useCallback(async () => {
+    setCloudStatus('loading')
+    setCloudError('')
+    try {
+      const response = await fetch('/api/state', { cache: 'no-store' })
+      if (response.status === 401) {
+        cloudReadyRef.current = false
+        setCloudStatus('locked')
+        return
+      }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || 'Não foi possível carregar a nuvem.')
+      }
+
+      const cloud = await response.json()
+      revisionRef.current = Number(cloud.revision) || 0
+      setCloudUpdatedAt(String(cloud.updatedAt || ''))
+
+      if (cloud.state) {
+        applyRemoteState(cloud.state as FinanceState)
+        cloudReadyRef.current = true
+        setCloudStatus('synced')
+      } else {
+        cloudReadyRef.current = true
+        await pushCloudState(stateRef.current)
+      }
+    } catch (err) {
+      setCloudError(err instanceof Error ? err.message : 'Erro de sincronização.')
+      setCloudStatus(navigator.onLine ? 'error' : 'offline')
+    }
+  }, [applyRemoteState, pushCloudState])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch('/api/sync-login', { cache: 'no-store' })
+        const result = await response.json()
+        if (result.authorized) await loadCloudState()
+        else setCloudStatus('locked')
+      } catch {
+        setCloudStatus(navigator.onLine ? 'error' : 'offline')
+        setCloudError('Não foi possível conectar ao banco de dados.')
+      }
+    })()
+  }, [loadCloudState])
+
+  useEffect(() => {
+    if (!cloudReadyRef.current) return
+    if (skipNextCloudSaveRef.current) {
+      skipNextCloudSaveRef.current = false
+      return
+    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => void pushCloudState(state), 900)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [state, pushCloudState])
+
+  useEffect(() => {
+    const interval = window.setInterval(async () => {
+      if (
+        !cloudReadyRef.current ||
+        statusRef.current === 'saving' ||
+        document.visibilityState !== 'visible'
+      ) {
+        return
+      }
+      try {
+        const response = await fetch('/api/state', { cache: 'no-store' })
+        if (!response.ok) return
+        const cloud = await response.json()
+        if (Number(cloud.revision) > revisionRef.current && cloud.state) {
+          revisionRef.current = Number(cloud.revision)
+          setCloudUpdatedAt(String(cloud.updatedAt || ''))
+          applyRemoteState(cloud.state as FinanceState)
+          setCloudStatus('synced')
+        }
+      } catch {
+        setCloudStatus('offline')
+      }
+    }, 10000)
+    return () => window.clearInterval(interval)
+  }, [applyRemoteState])
 
   const projections = useMemo(
     () => buildProjections(state, getReferenceDate(state)),
@@ -66,6 +218,33 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const value: FinanceContextValue = {
     state,
     projections,
+    cloudStatus,
+    cloudError,
+    cloudUpdatedAt,
+    loginCloud: async (code) => {
+      setCloudStatus('loading')
+      setCloudError('')
+      try {
+        const response = await fetch('/api/sync-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        })
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}))
+          setCloudError(error.error || 'Código incorreto.')
+          setCloudStatus('locked')
+          return false
+        }
+        await loadCloudState()
+        return true
+      } catch {
+        setCloudError('Não foi possível acessar a nuvem.')
+        setCloudStatus(navigator.onLine ? 'error' : 'offline')
+        return false
+      }
+    },
+    syncNow: loadCloudState,
     setProjectionMonths: (n) => patch((s) => ({ ...s, projectionMonths: n })),
     upsertSalary: (salary) =>
       patch((s) => {

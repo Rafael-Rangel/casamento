@@ -1,3 +1,5 @@
+import { isAuthorized } from './_lib/cloud.js'
+
 const MODEL = 'llama-3.3-70b-versatile'
 
 declare const process: { env: Record<string, string | undefined> }
@@ -81,7 +83,53 @@ function parseAssistantJson(content: string) {
   }
 }
 
+function headerNumber(headers: Headers, name: string) {
+  const raw = headers.get(name)
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+function readRateLimit(response: Response, usage?: { total_tokens?: number }) {
+  const limitRequests = headerNumber(response.headers, 'x-ratelimit-limit-requests')
+  const remainingRequests = headerNumber(response.headers, 'x-ratelimit-remaining-requests')
+  const limitTokens = headerNumber(response.headers, 'x-ratelimit-limit-tokens')
+  const remainingTokens = headerNumber(response.headers, 'x-ratelimit-remaining-tokens')
+  const resetRequests = response.headers.get('x-ratelimit-reset-requests')
+  const resetTokens = response.headers.get('x-ratelimit-reset-tokens')
+
+  return {
+    model: MODEL,
+    plan: 'free',
+    /** Limites publicados do plano gratuito para este modelo */
+    published: {
+      rpm: 30,
+      rpd: 1000,
+      tpm: 12000,
+      tpd: 100000,
+    },
+    /** Headers reais da Groq (RPD e TPM) */
+    requests: {
+      limit: limitRequests ?? 1000,
+      remaining: remainingRequests,
+      reset: resetRequests,
+    },
+    tokens: {
+      limit: limitTokens ?? 12000,
+      remaining: remainingTokens,
+      reset: resetTokens,
+    },
+    lastCallTokens: usage?.total_tokens ?? null,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export default async function handler(req: any, res: any) {
+  if (!isAuthorized(req)) {
+    jsonResponse(res, 401, { error: 'Acesso ao agente não autorizado.' })
+    return
+  }
+
   if (req.method !== 'POST') {
     jsonResponse(res, 405, { error: 'Método não permitido.' })
     return
@@ -125,9 +173,17 @@ export default async function handler(req: any, res: any) {
       }),
     })
 
+    const rateLimit = readRateLimit(response)
+
     if (!response.ok) {
       const text = await response.text()
-      jsonResponse(res, response.status, { error: `Groq falhou: ${text}` })
+      const isRate = response.status === 429
+      jsonResponse(res, response.status, {
+        error: isRate
+          ? 'Limite gratuito da Groq atingido. Espere um pouco e tente de novo.'
+          : `Groq falhou: ${text}`,
+        rateLimit,
+      })
       return
     }
 
@@ -138,6 +194,7 @@ export default async function handler(req: any, res: any) {
     jsonResponse(res, 200, {
       reply: String(parsed.reply || 'Pronto.'),
       actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+      rateLimit: readRateLimit(response, data?.usage),
     })
   } catch (err) {
     jsonResponse(res, 500, {

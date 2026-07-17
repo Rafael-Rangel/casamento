@@ -10,6 +10,10 @@ import {
   RotateCcw,
   Download,
   Bot,
+  Cloud,
+  CloudOff,
+  Loader2,
+  LockKeyhole,
 } from 'lucide-react'
 import { FinanceProvider, useFinance } from './context/FinanceContext'
 import { WeddingPage } from './components/WeddingPage'
@@ -108,6 +112,99 @@ function InstallBanner() {
   )
 }
 
+function CloudAccess() {
+  const { cloudStatus, cloudError, loginCloud } = useFinance()
+  const [code, setCode] = useState('')
+  const [sending, setSending] = useState(false)
+
+  if (cloudStatus === 'checking' || cloudStatus === 'loading') {
+    return (
+      <div className="flex min-h-[80dvh] items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto animate-spin text-[var(--rose)]" size={28} />
+          <p className="mt-3 text-sm text-[var(--ink-muted)]">Conectando à nuvem...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (cloudStatus !== 'locked') return null
+
+  return (
+    <div className="flex min-h-[85dvh] items-center justify-center px-3">
+      <form
+        className="w-full max-w-sm rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-2xl"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (!code.trim()) return
+          setSending(true)
+          await loginCloud(code.trim())
+          setSending(false)
+        }}
+      >
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--rose)]">
+          <LockKeyhole size={24} />
+        </div>
+        <h1 className="mt-4 text-center font-display text-2xl font-bold">Dados do casamento</h1>
+        <p className="mt-2 text-center text-sm text-[var(--ink-muted)]">
+          Digite o código da família uma vez neste aparelho para acessar os dados sincronizados.
+        </p>
+        <input
+          autoFocus
+          inputMode="numeric"
+          type="password"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Código de acesso"
+          className="mt-5 w-full rounded-xl border border-[var(--line)] bg-[var(--bg0)] px-4 py-3 text-center text-lg font-bold tracking-[0.25em] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+        />
+        {cloudError && <p className="mt-2 text-center text-xs text-[var(--negative)]">{cloudError}</p>}
+        <Button type="submit" className="mt-4 w-full" disabled={sending || !code.trim()}>
+          {sending ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
+          Acessar dados
+        </Button>
+      </form>
+    </div>
+  )
+}
+
+function CloudBadge() {
+  const { cloudStatus, cloudError, cloudUpdatedAt, syncNow } = useFinance()
+  const ok = cloudStatus === 'synced'
+  const saving = cloudStatus === 'saving'
+  const label = ok
+    ? 'Salvo na nuvem'
+    : saving
+      ? 'Salvando...'
+      : cloudStatus === 'offline'
+        ? 'Offline'
+        : 'Erro na nuvem'
+
+  return (
+    <button
+      type="button"
+      onClick={() => void syncNow()}
+      title={cloudError || (cloudUpdatedAt ? `Atualizado ${cloudUpdatedAt}` : label)}
+      className={`mb-3 flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold lg:mb-0 lg:justify-start ${
+        ok
+          ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+          : saving
+            ? 'border-sky-500/20 bg-sky-500/10 text-sky-300'
+            : 'border-orange-500/20 bg-orange-500/10 text-orange-300'
+      }`}
+    >
+      {saving ? (
+        <Loader2 size={14} className="animate-spin" />
+      ) : ok ? (
+        <Cloud size={14} />
+      ) : (
+        <CloudOff size={14} />
+      )}
+      {label}
+    </button>
+  )
+}
+
 function Shell() {
   const [tab, setTab] = useState<Tab>('meumes')
   const { resetAll } = useFinance()
@@ -128,9 +225,10 @@ function Shell() {
               Recebe · casamento · sobra pra viver
             </p>
             <p className="mt-2 rounded-lg bg-[var(--surface-2)] px-2 py-1.5 text-[10px] font-medium leading-snug text-[var(--ink-muted)]">
-              ✓ Salvo automaticamente neste aparelho
+              ✓ Sincronizado entre seus aparelhos
             </p>
           </div>
+          <CloudBadge />
           <nav className="space-y-1">
             {NAV.map((item) => (
               <button
@@ -163,6 +261,7 @@ function Shell() {
 
       <main className="min-w-0 flex-1">
         <div className="lg:hidden">
+          <CloudBadge />
           <InstallBanner />
         </div>
         {tab === 'meumes' && <MeuMesPage />}
@@ -205,7 +304,16 @@ function Shell() {
 export default function App() {
   return (
     <FinanceProvider>
-      <Shell />
+      <CloudAccess />
+      <CloudApp />
     </FinanceProvider>
   )
+}
+
+function CloudApp() {
+  const { cloudStatus } = useFinance()
+  if (cloudStatus === 'checking' || cloudStatus === 'loading' || cloudStatus === 'locked') {
+    return null
+  }
+  return <Shell />
 }
