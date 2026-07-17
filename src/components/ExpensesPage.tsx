@@ -1,8 +1,14 @@
 import { useState } from 'react'
+import { format } from 'date-fns'
 import { Pencil, Plus } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import type { Expense, ExpenseKind, ExpensePurpose } from '../types/finance'
 import { uid } from '../lib/format'
+import { getReferenceDate } from '../lib/referenceDate'
+import {
+  isExpenseDisplayPaid,
+  setExpensePaidFlag,
+} from '../lib/expensePayment'
 import { Button, EmptyState, Field, Input, Modal, Money, Select, Textarea } from './ui'
 
 const KIND_LABEL: Record<ExpenseKind, string> = {
@@ -11,7 +17,7 @@ const KIND_LABEL: Record<ExpenseKind, string> = {
   recurring: 'Recorrente',
 }
 
-function blankExpense(categoryId: string): Expense {
+function blankExpense(categoryId: string, date: string): Expense {
   return {
     id: uid(),
     name: '',
@@ -19,36 +25,49 @@ function blankExpense(categoryId: string): Expense {
     amount: 0,
     kind: 'unique',
     purpose: 'life',
-    date: new Date().toISOString().slice(0, 10),
+    date,
     installmentCount: 2,
     endDate: null,
     notes: '',
+    paid: false,
   }
 }
 
 export function ExpensesPage() {
   const { state, upsertExpense, removeExpense, upsertCategory } = useFinance()
+  const refDate = format(getReferenceDate(state), 'yyyy-MM-dd')
   const [open, setOpen] = useState(false)
   const [catOpen, setCatOpen] = useState(false)
   const [form, setForm] = useState<Expense>(() =>
-    blankExpense(state.categories[0]?.id || 'outros'),
+    blankExpense(state.categories[0]?.id || 'outros', refDate),
   )
   const [newCat, setNewCat] = useState({ name: '', color: '#2F6B5A' })
 
   const create = () => {
-    setForm(blankExpense(state.categories[0]?.id || 'outros'))
+    setForm(
+      blankExpense(
+        state.categories[0]?.id || 'outros',
+        format(getReferenceDate(state), 'yyyy-MM-dd'),
+      ),
+    )
     setOpen(true)
   }
 
   const edit = (e: Expense) => {
-    setForm({ ...e })
+    setForm({ ...e, paid: isExpenseDisplayPaid(e, refDate) })
     setOpen(true)
   }
 
   const save = () => {
     if (!form.name.trim() || form.amount <= 0) return
-    upsertExpense(form)
+    const withStatus = setExpensePaidFlag(form, !!form.paid, refDate)
+    upsertExpense(withStatus)
     setOpen(false)
+  }
+
+  const togglePaid = (expense: Expense) => {
+    const nextPaid = !isExpenseDisplayPaid(expense, refDate)
+    upsertExpense(setExpensePaidFlag(expense, nextPaid, refDate))
   }
 
   const saveCategory = () => {
@@ -70,7 +89,7 @@ export function ExpensesPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Vida e Cartão</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Gastos do dia a dia e cartão — pagos com o que sobra depois do casamento do mês.
+            Marque como paga quando sair da conta. Pendente entra em “Ainda a pagar” no Meu mês.
           </p>
         </div>
         <div className="flex gap-2">
@@ -107,44 +126,58 @@ export function ExpensesPage() {
         />
       ) : (
         <div className="space-y-2">
-          {state.expenses.map((e) => (
-            <div
-              key={e.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold text-[var(--ink)]">{e.name}</h3>
-                  <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)]">
-                    {catName(e.categoryId)}
-                  </span>
-                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold">
-                    {KIND_LABEL[e.kind]}
-                  </span>
-                  <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)] border border-[var(--line)]">
-                    {(e.purpose || 'life') === 'life' ? 'Vida/cartão' : 'Casamento'}
-                  </span>
+          {state.expenses.map((e) => {
+            const paid = isExpenseDisplayPaid(e, refDate)
+            return (
+              <div
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-[var(--ink)]">{e.name}</h3>
+                    <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)]">
+                      {catName(e.categoryId)}
+                    </span>
+                    <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold">
+                      {KIND_LABEL[e.kind]}
+                    </span>
+                    <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)] border border-[var(--line)]">
+                      {(e.purpose || 'life') === 'life' ? 'Vida/cartão' : 'Casamento'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => togglePaid(e)}
+                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                        paid
+                          ? 'bg-emerald-500/15 text-emerald-700'
+                          : 'bg-amber-500/15 text-amber-800'
+                      }`}
+                    >
+                      {paid ? 'Paga' : 'Pendente'}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                    {e.date}
+                    {e.kind === 'installment' && e.installmentCount
+                      ? ` · ${e.installmentCount}x`
+                      : ''}
+                    {e.kind === 'recurring' && e.endDate ? ` · até ${e.endDate}` : ''}
+                    {e.notes ? ` · ${e.notes}` : ''}
+                  </p>
                 </div>
-                <p className="mt-1 text-xs text-[var(--ink-muted)]">
-                  {e.date}
-                  {e.kind === 'installment' && e.installmentCount
-                    ? ` · ${e.installmentCount}x`
-                    : ''}
-                  {e.kind === 'recurring' && e.endDate ? ` · até ${e.endDate}` : ''}
-                  {e.notes ? ` · ${e.notes}` : ''}
-                </p>
+                <div className="flex items-center gap-3">
+                  <Money value={-e.amount} className="text-lg" />
+                  <Button variant="ghost" className="px-2" onClick={() => edit(e)}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="danger" className="px-2" onClick={() => removeExpense(e.id)}>
+                    Excluir
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Money value={-e.amount} className="text-lg" />
-                <Button variant="ghost" className="px-2" onClick={() => edit(e)}>
-                  <Pencil size={14} />
-                </Button>
-                <Button variant="danger" className="px-2" onClick={() => removeExpense(e.id)}>
-                  Excluir
-                </Button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -195,6 +228,18 @@ export function ExpensesPage() {
             >
               <option value="life">Vida geral / cartão (reduz sobra)</option>
               <option value="wedding">Extra do casamento</option>
+            </Select>
+          </Field>
+          <Field
+            label="Status de pagamento"
+            hint="Paga = já saiu da conta. Pendente = ainda a pagar no Meu mês."
+          >
+            <Select
+              value={form.paid ? 'paid' : 'pending'}
+              onChange={(e) => setForm({ ...form, paid: e.target.value === 'paid' })}
+            >
+              <option value="pending">Pendente</option>
+              <option value="paid">Paga</option>
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">

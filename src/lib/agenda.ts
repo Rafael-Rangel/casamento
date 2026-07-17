@@ -15,6 +15,7 @@ import {
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Expense, FinanceState, OtherIncome, Project, SalarySource } from '../types/finance'
+import { isExpenseOccurrencePaid, expenseInstallmentParts } from './expensePayment'
 import { implementationIncome, monthlyYourShare } from './projectShare'
 
 export type AgendaKind =
@@ -35,6 +36,8 @@ export interface AgendaEvent {
   amount: number
   meta: string
   sourceId: string
+  /** Despesas: status explícito. Receitas: inferido por data no monthPlan. */
+  paid?: boolean
 }
 
 export interface DayAgenda {
@@ -71,25 +74,6 @@ function isActiveOnDate(start: string, end: string | null | undefined, day: Date
     if (isAfter(d, e)) return false
   }
   return true
-}
-
-function expenseInstallmentDates(expense: Expense): { date: string; amount: number; index: number }[] {
-  if (expense.kind !== 'installment' || !expense.installmentCount || expense.installmentCount < 1) {
-    return [{ date: expense.date, amount: expense.amount, index: 1 }]
-  }
-  const count = expense.installmentCount
-  const base = Math.floor((expense.amount / count) * 100) / 100
-  let allocated = 0
-  const start = parseISO(expense.date)
-  return Array.from({ length: count }, (_, i) => {
-    const amount = i === count - 1 ? Math.round((expense.amount - allocated) * 100) / 100 : base
-    allocated += amount
-    return {
-      date: format(addMonths(start, i), 'yyyy-MM-dd'),
-      amount,
-      index: i + 1,
-    }
-  })
 }
 
 function salaryEvents(salaries: SalarySource[], from: Date, to: Date): AgendaEvent[] {
@@ -249,6 +233,7 @@ function expenseEvents(
         amount: e.amount,
         meta: `${purpose} · ${cat}`,
         sourceId: e.id,
+        paid: isExpenseOccurrencePaid(e, e.date),
       })
     } else if (e.kind === 'recurring') {
       const startDay = getDate(parseISO(e.date))
@@ -268,13 +253,14 @@ function expenseEvents(
               amount: e.amount,
               meta: `${purpose} · ${cat} · recorrente`,
               sourceId: e.id,
+              paid: isExpenseOccurrencePaid(e, payDate),
             })
           }
         }
         cursor = addMonths(cursor, 1)
       }
     } else {
-      for (const part of expenseInstallmentDates(e)) {
+      for (const part of expenseInstallmentParts(e)) {
         const d = parseISO(part.date)
         if (isBefore(d, fromD) || isAfter(d, toD)) continue
         events.push({
@@ -286,6 +272,7 @@ function expenseEvents(
           amount: part.amount,
           meta: `${purpose} · ${cat} · parcela ${part.index}/${e.installmentCount}`,
           sourceId: e.id,
+          paid: isExpenseOccurrencePaid(e, part.date),
         })
       }
     }
@@ -395,13 +382,21 @@ export function cashflowSnapshot(
       else pendingIncome += e.amount
     } else {
       if (inThisMonth) thisMonthOut += e.amount
-      if (e.date <= todayKey) spentUntilToday += e.amount
+      const expensePaid =
+        e.kind === 'expense' && typeof e.paid === 'boolean' ? e.paid : e.date <= todayKey
+      if (expensePaid) spentUntilToday += e.amount
       else pendingExpense += e.amount
     }
   }
 
   const nextIncomes = events.filter((e) => e.direction === 'in' && e.date > todayKey).slice(0, 8)
-  const nextExpenses = events.filter((e) => e.direction === 'out' && e.date > todayKey).slice(0, 8)
+  const nextExpenses = events
+    .filter((e) => {
+      if (e.direction !== 'out') return false
+      if (e.kind === 'expense' && typeof e.paid === 'boolean') return !e.paid
+      return e.date > todayKey
+    })
+    .slice(0, 8)
 
   return {
     today: todayKey,

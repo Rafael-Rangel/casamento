@@ -9,6 +9,7 @@ import type {
   SalarySource,
   WeddingFlexItem,
 } from '../types/finance'
+import { applyExpenseCashDelta } from './expenseCash'
 import { uid } from './format'
 
 type AgentBase = { type: string }
@@ -90,6 +91,8 @@ function normalizeExpense(
 ): Expense {
   const e = action.expense
   const categoryId = e.categoryId || prev?.categoryId || state.categories[0]?.id || 'outros'
+  const paid =
+    typeof e.paid === 'boolean' ? e.paid : typeof prev?.paid === 'boolean' ? prev.paid : false
   return {
     id: e.id || prev?.id || uid(),
     name: e.name,
@@ -101,6 +104,9 @@ function normalizeExpense(
     installmentCount: e.installmentCount ?? prev?.installmentCount,
     endDate: e.endDate === undefined ? prev?.endDate ?? null : e.endDate,
     notes: e.notes ?? prev?.notes ?? '',
+    paid,
+    paidOccurrences:
+      e.paidOccurrences !== undefined ? e.paidOccurrences : prev?.paidOccurrences,
   }
 }
 
@@ -133,16 +139,28 @@ export function applyAgentActions(state: FinanceState, actions: AgentAction[]): 
         applied.push(`Removido projeto: ${action.idOrName}`)
         break
       case 'upsertExpense': {
-        const prev = action.expense.id ? next.expenses.find((e) => e.id === action.expense.id) : byIdOrName(next.expenses, action.expense.name)
+        const prev = action.expense.id
+          ? next.expenses.find((e) => e.id === action.expense.id)
+          : byIdOrName(next.expenses, action.expense.name)
         const expense = normalizeExpense(action, next, prev)
-        next = { ...next, expenses: upsert(next.expenses, expense) }
+        next = {
+          ...next,
+          expenses: upsert(next.expenses, expense),
+          cashBalance: applyExpenseCashDelta(next.cashBalance, prev, expense) ?? next.cashBalance,
+        }
         applied.push(`Despesa: ${expense.name}`)
         break
       }
-      case 'removeExpense':
-        next = { ...next, expenses: next.expenses.filter((e) => e !== byIdOrName(next.expenses, action.idOrName)) }
+      case 'removeExpense': {
+        const prev = byIdOrName(next.expenses, action.idOrName)
+        next = {
+          ...next,
+          expenses: next.expenses.filter((e) => e !== prev),
+          cashBalance: applyExpenseCashDelta(next.cashBalance, prev, undefined) ?? next.cashBalance,
+        }
         applied.push(`Removida despesa: ${action.idOrName}`)
         break
+      }
       case 'upsertOtherIncome': {
         const income: OtherIncome = {
           id: action.income.id || uid(),

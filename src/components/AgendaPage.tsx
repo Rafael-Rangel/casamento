@@ -109,16 +109,16 @@ export function AgendaPage() {
           </p>
           <Money value={-plan.lifePending} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Já lançado no mês {fmt(plan.lifeTotal)}
+            Pagas {fmt(plan.lifePaid)} · total {fmt(plan.lifeTotal)}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
-            Sobra p/ vida e cartão
+            Sobra disponível agora
           </p>
-          <Money value={plan.leftoverForLife} className="mt-1 block text-2xl" />
+          <Money value={plan.leftoverAfterLife} className="mt-1 block text-2xl" />
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Conta − casamento do mês
+            Conta − casamento pendente − vida pendente
           </p>
         </div>
       </div>

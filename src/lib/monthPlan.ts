@@ -57,7 +57,7 @@ export interface MonthPlan {
   /** Tudo que precisa pagar no mês */
   mustPayTotal: number
   mustPayPending: number
-  /** Conta agora − casamento ainda pendente no mês */
+  /** Conta agora − casamento ainda pendente no mês (saldo imediato p/ viver) */
   leftoverForLife: number
   /** Sobra após vida/cartão ainda pendente */
   leftoverAfterLife: number
@@ -65,6 +65,8 @@ export interface MonthPlan {
   leftoverForMe: number
   /** Igual leftoverForMe (visão “a partir de agora”) */
   leftoverFromNow: number
+  /** Receitas do mês − total de despesas do mês (vida + casamento) */
+  monthNet: number
   /** Agenda do mês: o que receber e o que pagar em cada dia */
   daily: {
     date: string
@@ -147,6 +149,8 @@ function groupByCategory(items: MonthObligation[]): CategoryTotal[] {
 }
 
 function toObligation(e: AgendaEvent, todayKey: string): MonthObligation {
+  const paid =
+    e.kind === 'expense' && typeof e.paid === 'boolean' ? e.paid : e.date <= todayKey
   return {
     id: e.id,
     date: e.date,
@@ -155,7 +159,7 @@ function toObligation(e: AgendaEvent, todayKey: string): MonthObligation {
     meta: e.meta,
     kind: e.kind,
     direction: e.direction,
-    paid: e.date <= todayKey,
+    paid,
     source: e.direction === 'in' ? 'income' : 'life',
   }
 }
@@ -221,6 +225,7 @@ export function buildMonthPlan(state: FinanceState, today?: Date): MonthPlan {
   const leftoverAfterLife = leftoverForLife - lifePending
   const leftoverForMe = cashNow + incomePending - (lifePending + weddingPending)
   const leftoverFromNow = leftoverForMe
+  const monthNet = incomeTotal - mustPayTotal
 
   const byDate = new Map<string, { receive: MonthObligation[]; pay: MonthObligation[] }>()
   const bump = (item: MonthObligation) => {
@@ -274,6 +279,7 @@ export function buildMonthPlan(state: FinanceState, today?: Date): MonthPlan {
     leftoverAfterLife,
     leftoverForMe,
     leftoverFromNow,
+    monthNet,
     daily,
   }
 }

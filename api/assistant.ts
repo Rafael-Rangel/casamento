@@ -17,6 +17,8 @@ Regras do domínio:
 - "Recebemos" = salários + projetos + receitas extras do mês.
 - Projetos KoruVision: implementação/parcela é 100% do usuário; mensalidade é 2/3 do valor bruto.
 - Casamento é mensal, não exige data diária para pagar.
+- Despesas de vida/cartão têm status: paid=true (já saiu da conta) ou paid=false (pendente / ainda a pagar).
+- Ao criar despesa já paga, use "paid":true (baixa o caixa). Despesa futura ou ainda não paga: "paid":false.
 - Não invente dados críticos: se faltar valor, cliente, data ou número de parcelas, peça confirmação.
 - Nunca retorne texto fora do JSON.
 
@@ -32,7 +34,7 @@ Ações disponíveis:
   {"type":"removeSalary","idOrName":"Gênesis"},
   {"type":"upsertProject","project":{"name":"Website","client":"Cliente","closeDate":"2026-07-17","totalValue":4000,"installments":[{"id":"qualquer-id","amount":2000,"date":"2026-07-17"},{"id":"qualquer-id-2","amount":2000,"date":"2026-08-17"}],"hasMonthly":true,"monthlyAmount":600,"monthlyStart":"2026-08-17","monthlyEnd":null,"notes":""}},
   {"type":"removeProject","idOrName":"Website"},
-  {"type":"upsertExpense","expense":{"name":"Cartão","amount":500,"categoryId":"cartao","kind":"unique","purpose":"life","date":"2026-07-17","notes":""}},
+  {"type":"upsertExpense","expense":{"name":"Cartão","amount":500,"categoryId":"cartao","kind":"unique","purpose":"life","date":"2026-07-17","paid":false,"notes":""}},
   {"type":"removeExpense","idOrName":"Cartão"},
   {"type":"upsertOtherIncome","income":{"name":"Extra","amount":1000,"date":"2026-07-17","recurring":false,"endDate":null,"notes":""}},
   {"type":"removeOtherIncome","idOrName":"Extra"},

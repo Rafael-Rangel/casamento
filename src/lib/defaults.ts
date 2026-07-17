@@ -24,7 +24,11 @@ export const WEDDING_FOTO2_AUG_SEED_VERSION = 8
 export const WEDDING_FULL_SCHEDULE_SEED_VERSION = 9
 /** Caixa 6.720,22 + Vestido/Obra julho já pagos */
 export const CASH_AND_JULY_PAID_SEED_VERSION = 10
-export const SEED_VERSION = CASH_AND_JULY_PAID_SEED_VERSION
+/** Despesas únicas/parceladas de vida já lançadas passam a baixar o caixa */
+export const LIFE_EXPENSE_CASH_SYNC_VERSION = 11
+/** Status explícito pago/pendente nas despesas */
+export const EXPENSE_PAYMENT_STATUS_VERSION = 12
+export const SEED_VERSION = EXPENSE_PAYMENT_STATUS_VERSION
 
 export function seedCashBalance(): CashBalance {
   return {
@@ -148,6 +152,7 @@ function lifeExpense(
     date: '2026-01-01',
     endDate: '2026-12-31',
     notes: '',
+    paid: false,
     ...extra,
   }
 }

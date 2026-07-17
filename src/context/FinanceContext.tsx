@@ -13,6 +13,7 @@ import { buildProjections } from '../lib/projections'
 import { getReferenceDate } from '../lib/referenceDate'
 import { STORAGE_KEY } from '../lib/defaults'
 import { applyAgentActions, type AgentAction } from '../lib/agentActions'
+import { applyExpenseCashDelta } from '../lib/expenseCash'
 import type {
   CashBalance,
   Category,
@@ -272,17 +273,31 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       patch((s) => ({ ...s, projects: s.projects.filter((x) => x.id !== id) })),
     upsertExpense: (expense) =>
       patch((s) => {
-        const normalized = { ...expense, purpose: expense.purpose || 'life' }
-        const exists = s.expenses.some((x) => x.id === normalized.id)
+        const normalized: Expense = {
+          ...expense,
+          purpose: expense.purpose || 'life',
+          paid: expense.kind === 'unique' ? !!expense.paid : false,
+          paidOccurrences: expense.kind === 'unique' ? undefined : expense.paidOccurrences,
+        }
+        const prev = s.expenses.find((x) => x.id === normalized.id)
+        const exists = !!prev
         return {
           ...s,
           expenses: exists
             ? s.expenses.map((x) => (x.id === normalized.id ? normalized : x))
             : [...s.expenses, normalized],
+          cashBalance: applyExpenseCashDelta(s.cashBalance, prev, normalized) ?? s.cashBalance,
         }
       }),
     removeExpense: (id) =>
-      patch((s) => ({ ...s, expenses: s.expenses.filter((x) => x.id !== id) })),
+      patch((s) => {
+        const prev = s.expenses.find((x) => x.id === id)
+        return {
+          ...s,
+          expenses: s.expenses.filter((x) => x.id !== id),
+          cashBalance: applyExpenseCashDelta(s.cashBalance, prev, undefined) ?? s.cashBalance,
+        }
+      }),
     upsertOtherIncome: (income) =>
       patch((s) => {
         const exists = s.otherIncomes.some((x) => x.id === income.id)

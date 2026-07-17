@@ -44,6 +44,13 @@ export interface Expense {
   installmentCount?: number
   endDate?: string | null
   notes: string
+  /**
+   * unique: se a despesa já saiu da conta.
+   * installment/recurring: use paidOccurrences por data.
+   */
+  paid: boolean
+  /** Parcelas/ocorrências pagas (chave = yyyy-MM-dd). */
+  paidOccurrences?: Record<string, boolean>
 }
 
 export interface OtherIncome {

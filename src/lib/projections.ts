@@ -286,9 +286,13 @@ export function weddingMonthBudgets(state: FinanceState, today?: Date): number[]
     let pendingIn = 0
     let pendingLifeOut = 0
     for (const e of events) {
-      if (e.date <= refDay) continue
-      if (e.direction === 'in') pendingIn += e.amount
-      else if (e.kind === 'expense' && !e.meta.startsWith('Casamento ·')) pendingLifeOut += e.amount
+      if (e.direction === 'in') {
+        if (e.date > refDay) pendingIn += e.amount
+        continue
+      }
+      if (e.kind !== 'expense' || e.meta.startsWith('Casamento ·')) continue
+      const unpaid = typeof e.paid === 'boolean' ? !e.paid : e.date > refDay
+      if (unpaid) pendingLifeOut += e.amount
     }
 
     budgets[idx] = cash.amount + pendingIn - pendingLifeOut

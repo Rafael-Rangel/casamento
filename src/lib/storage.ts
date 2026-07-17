@@ -1,6 +1,7 @@
 import {
   CASH_AND_JULY_PAID_SEED_VERSION,
   createInitialState,
+  LIFE_EXPENSE_CASH_SYNC_VERSION,
   PROJECT_SEED_VERSION,
   SALARY_SEED_VERSION,
   seedCashBalance,
@@ -11,6 +12,8 @@ import {
   WEDDING_FOTO2_AUG_SEED_VERSION,
   WEDDING_FULL_SCHEDULE_SEED_VERSION,
 } from './defaults'
+import { lifeExpenseCashDrain } from './expenseCash'
+import { migrateExpensePaymentStatus } from './expensePayment'
 import {
   createWeddingState,
   DEFERRED_FLEX_IDS,
@@ -67,6 +70,23 @@ function applyCashSeed(
   }
   // Corrige 6.760,22 → 6.720,22 (ou aplica semente pela 1ª vez)
   return seedCashBalance()
+}
+
+/** Uma vez: despesas únicas/parceladas já lançadas baixam o caixa (recorrentes ficam de fora). */
+function applyLifeExpenseCashSync(
+  cash: CashBalance,
+  expenses: Expense[],
+  seedVersion: number | undefined,
+): CashBalance {
+  if (seedVersion !== undefined && seedVersion >= LIFE_EXPENSE_CASH_SYNC_VERSION) return cash
+  const drain = expenses
+    .filter((e) => e.kind === 'unique' || e.kind === 'installment')
+    .reduce((sum, e) => sum + lifeExpenseCashDrain(e, cash.asOf), 0)
+  if (drain <= 0) return cash
+  return {
+    ...cash,
+    amount: Math.round((cash.amount - drain) * 100) / 100,
+  }
 }
 
 function applyWeddingJuneSeed(
@@ -161,19 +181,34 @@ export function loadState(): FinanceState {
     if (!raw) return createInitialState()
     const parsed = JSON.parse(raw) as Partial<FinanceState>
     const base = createInitialState()
+    const asOf =
+      parsed.cashBalance?.asOf ||
+      base.cashBalance.asOf ||
+      new Date().toISOString().slice(0, 10)
+    const expenses = (parsed.expenses || base.expenses).map((e: Expense) =>
+      migrateExpensePaymentStatus(
+        {
+          ...e,
+          purpose: e.purpose || 'life',
+        } as Expense,
+        asOf,
+      ),
+    )
+    const cashBalance = applyLifeExpenseCashSync(
+      applyCashSeed(parsed.cashBalance, parsed.seedVersion),
+      expenses,
+      parsed.seedVersion,
+    )
     return {
       ...base,
       ...parsed,
       categories: parsed.categories?.length ? parsed.categories : base.categories,
       salaries: applySalarySeed(parsed.salaries ?? base.salaries, parsed.seedVersion),
       projects: applyProjectSeed(parsed.projects ?? base.projects, parsed.seedVersion),
-      cashBalance: applyCashSeed(parsed.cashBalance, parsed.seedVersion),
+      cashBalance,
       seedVersion: SEED_VERSION,
       wedding: applyWeddingJuneSeed(parsed.wedding, parsed.seedVersion),
-      expenses: (parsed.expenses || base.expenses).map((e: Expense) => ({
-        ...e,
-        purpose: e.purpose || 'life',
-      })),
+      expenses,
     }
   } catch {
     return createInitialState()

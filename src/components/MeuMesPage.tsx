@@ -12,12 +12,10 @@ function capitalize(s: string) {
 function ItemRow({ item }: { item: MonthObligation }) {
   const isWedding = item.source === 'wedding'
   const badge = item.paid
-    ? isWedding
-      ? 'Pago'
-      : 'Na data'
+    ? 'Paga'
     : item.direction === 'in'
       ? 'A receber'
-      : 'A pagar'
+      : 'Pendente'
   return (
     <li className="flex items-start justify-between gap-3 text-sm">
       <div className="min-w-0">
@@ -97,26 +95,37 @@ export function MeuMesPage() {
           {capitalize(plan.monthLabel)}
         </h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Conta − casamento do mês = sobra pra viver. Marcar ✓ no casamento sobe a sobra.
+            Uma única verdade: paga = já saiu · pendente = ainda a pagar · sobra = conta − o que falta.
           </p>
       </header>
 
       <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-          Sobra para vida e cartão
+          Sobra disponível agora
         </p>
         <p className="mt-1 text-[11px] text-white/45">
-          Se pagar tudo do casamento deste mês com o que tem agora
+          Conta − casamento pendente − vida/cartão pendente
         </p>
         <p
           className={`mt-2 font-display text-4xl font-extrabold tabular-nums ${
-            plan.leftoverForLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+            plan.leftoverAfterLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
           }`}
         >
-          {fmt(plan.leftoverForLife)}
+          {fmt(plan.leftoverAfterLife)}
         </p>
         <p className="mt-1 text-[11px] text-white/40">
-          {fmt(plan.cashNow)} − {fmt(plan.weddingPending)} casamento
+          {fmt(plan.cashNow)} − {fmt(plan.weddingPending)} casamento − {fmt(plan.lifePending)}{' '}
+          vida
+        </p>
+        <p className="mt-2 text-[11px] text-white/35">
+          Resultado do mês (receitas − despesas):{' '}
+          <span
+            className={`font-semibold ${
+              plan.monthNet >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+            }`}
+          >
+            {fmt(plan.monthNet)}
+          </span>
         </p>
 
         <div className="mt-4 space-y-2">
@@ -180,6 +189,10 @@ export function MeuMesPage() {
               <div className="flex justify-between gap-2">
                 <span className="text-white/45">Já saiu no mês</span>
                 <span className="font-semibold text-[#ef9d86]">{fmt(spentThisMonth)}</span>
+              </div>
+              <div className="flex justify-between gap-2 text-white/35">
+                <span>Total despesas (pagas + pendentes)</span>
+                <span className="font-semibold">{fmt(plan.mustPayTotal)}</span>
               </div>
               <div className="flex justify-between gap-2">
                 <span className="text-white/45">+ Falta entrar</span>
@@ -273,13 +286,13 @@ export function MeuMesPage() {
 
         {plan.lifePending > 0 && (
           <p className="mt-3 text-xs text-white/55">
-            Depois da vida/cartão pendente ({fmt(plan.lifePending)}), sobra{' '}
+            Reserva só após o casamento (conta − casamento pendente):{' '}
             <span
               className={`font-bold ${
-                plan.leftoverAfterLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+                plan.leftoverForLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
               }`}
             >
-              {fmt(plan.leftoverAfterLife)}
+              {fmt(plan.leftoverForLife)}
             </span>
           </p>
         )}
@@ -344,7 +357,7 @@ export function MeuMesPage() {
             Casamento + vida/cartão, na ordem do mês.
           </p>
           {payQueue.length === 0 ? (
-            <p className="text-sm text-[var(--positive)]">Tudo do mês já passou da data.</p>
+            <p className="text-sm text-[var(--positive)]">Nada pendente neste mês.</p>
           ) : (
             <ul className="space-y-2">
               {payQueue.map((i) => (
