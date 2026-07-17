@@ -148,7 +148,11 @@ export function MeuMesPage() {
                   setEditingCash(true)
                 }}
               >
-                <p className="mt-0.5 font-display text-2xl font-bold text-white">
+                <p
+                  className={`mt-0.5 font-display text-2xl font-bold ${
+                    plan.cashNow >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+                  }`}
+                >
                   {fmt(plan.cashNow)}
                 </p>
                 <p className="mt-0.5 text-[10px] text-white/40">
