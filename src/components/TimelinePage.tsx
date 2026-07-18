@@ -1,6 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
+import { useMemo, useState } from 'react'
 import { useFinance } from '../context/FinanceContext'
 import { capitalize } from '../lib/format'
 import { weddingMonthBudgets } from '../lib/projections'
@@ -11,9 +9,8 @@ import {
   TAG_LABEL,
 } from '../lib/wedding'
 import { Money, Select } from './ui'
+import { PageEnter } from './PageEnter'
 import type { MonthEntry } from '../types/finance'
-
-gsap.registerPlugin(useGSAP)
 
 const KIND_STYLE: Record<MonthEntry['kind'], string> = {
   salary: 'bg-emerald-500/15 text-emerald-300',
@@ -34,7 +31,6 @@ const KIND_LABEL: Record<MonthEntry['kind'], string> = {
 export function TimelinePage() {
   const { projections, state, setProjectionMonths } = useFinance()
   const [expanded, setExpanded] = useState<string | null>(projections[0]?.key ?? null)
-  const root = useRef<HTMLDivElement>(null)
   const weddingSchedule = useMemo(() => {
     const budgets = weddingMonthBudgets(state)
     return buildWeddingSchedule(budgets, state.wedding.flexItems).schedule
@@ -44,22 +40,9 @@ export function TimelinePage() {
     [weddingSchedule],
   )
 
-  useGSAP(
-    () => {
-      gsap.from('.tl-month', {
-        y: 20,
-        opacity: 0,
-        duration: 0.45,
-        stagger: 0.05,
-        ease: 'power2.out',
-      })
-    },
-    { scope: root, dependencies: [projections.length] },
-  )
-
   return (
-    <div ref={root} className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <PageEnter className="space-y-5" replayKey={projections.length}>
+      <div data-enter="header" className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Linha do tempo</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -100,7 +83,7 @@ export function TimelinePage() {
           const availableForWedding = wedding?.budget ?? m.weddingBudget
           const afterWedding = availableForWedding - weddingPending
           return (
-            <div key={m.key} className="tl-month relative pl-8 sm:pl-10">
+            <div key={m.key} data-enter="item" className="tl-month relative pl-8 sm:pl-10">
               <span
                 className={`absolute left-0 top-5 h-6 w-6 rounded-full border-2 border-[var(--surface)] ${
                   m.balance >= 0 ? 'bg-[var(--accent)]' : 'bg-[var(--negative)]'
@@ -301,6 +284,6 @@ export function TimelinePage() {
           )
         })}
       </div>
-    </div>
+    </PageEnter>
   )
 }

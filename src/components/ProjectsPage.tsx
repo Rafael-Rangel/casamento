@@ -6,6 +6,7 @@ import type { Project, ProjectInstallment } from '../types/finance'
 import { uid } from '../lib/format'
 import { monthlyYourShare } from '../lib/projectShare'
 import { Button, EmptyState, Field, Input, Modal, Money, Textarea } from './ui'
+import { PageEnter } from './PageEnter'
 
 type SplitMode = 'full' | 'half' | 'custom' | 'equal'
 
@@ -102,8 +103,8 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <PageEnter className="space-y-5">
+      <div data-enter="header" className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent-strong)]">
             KoruVision
@@ -120,20 +121,23 @@ export function ProjectsPage() {
       </div>
 
       {state.projects.length === 0 ? (
-        <EmptyState
-          title="Nenhum projeto cadastrado"
-          desc="Cadastre um projeto KoruVision com parcelas e mensalidade sob medida."
-          action={
-            <Button onClick={create}>
-              <Plus size={16} /> Criar projeto
-            </Button>
-          }
-        />
+        <div data-enter="block">
+          <EmptyState
+            title="Nenhum projeto cadastrado"
+            desc="Cadastre um projeto KoruVision com parcelas e mensalidade sob medida."
+            action={
+              <Button onClick={create}>
+                <Plus size={16} /> Criar projeto
+              </Button>
+            }
+          />
+        </div>
       ) : (
         <div className="space-y-3">
           {state.projects.map((p) => (
             <div
               key={p.id}
+              data-enter="item"
               className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -433,6 +437,6 @@ export function ProjectsPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageEnter>
   )
 }

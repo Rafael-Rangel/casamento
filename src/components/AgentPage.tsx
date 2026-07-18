@@ -3,6 +3,7 @@ import { Bot, Check, Gauge, Loader2, Sparkles, Wand2 } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import type { AgentAction } from '../lib/agentActions'
 import { Button, Textarea } from './ui'
+import { PageEnter } from './PageEnter'
 
 interface RateLimitInfo {
   model: string
@@ -135,7 +136,7 @@ function LimitCard({ limits }: { limits: RateLimitInfo }) {
   const hasLive = dayRemaining !== null || minuteRemaining !== null
 
   return (
-    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+    <section data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
       <div className="mb-3 flex items-start gap-2">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--rose)]">
           <Gauge size={16} />
@@ -293,8 +294,8 @@ export function AgentPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <header>
+    <PageEnter className="mx-auto flex max-w-2xl flex-col gap-4">
+      <header data-enter="header">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
           Assistente
         </p>
@@ -313,6 +314,7 @@ export function AgentPage() {
           <button
             key={text}
             type="button"
+            data-enter="item"
             onClick={() => send(text)}
             className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left text-xs font-semibold text-[var(--ink-muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
           >
@@ -326,6 +328,7 @@ export function AgentPage() {
         {messages.map((m) => (
           <div
             key={m.id}
+            data-enter="item"
             className={`rounded-2xl border p-4 ${
               m.role === 'assistant'
                 ? 'border-[var(--line)] bg-[var(--surface)]'
@@ -369,6 +372,7 @@ export function AgentPage() {
       </section>
 
       <form
+        data-enter="block"
         className="sticky bottom-[calc(var(--nav-h)+var(--safe-bottom)+0.5rem)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-2xl lg:bottom-4"
         onSubmit={(e) => {
           e.preventDefault()
@@ -393,6 +397,6 @@ export function AgentPage() {
           </Button>
         </div>
       </form>
-    </div>
+    </PageEnter>
   )
 }

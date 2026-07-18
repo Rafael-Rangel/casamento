@@ -10,6 +10,7 @@ import {
   setExpensePaidFlag,
 } from '../lib/expensePayment'
 import { Button, EmptyState, Field, Input, Modal, Money, Select, Textarea } from './ui'
+import { PageEnter } from './PageEnter'
 
 const KIND_LABEL: Record<ExpenseKind, string> = {
   unique: 'Único',
@@ -85,8 +86,8 @@ export function ExpensesPage() {
   const catName = (id: string) => state.categories.find((c) => c.id === id)?.name || id
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <PageEnter className="space-y-5">
+      <div data-enter="header" className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Vida e Cartão</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -107,6 +108,7 @@ export function ExpensesPage() {
         {state.categories.map((c) => (
           <span
             key={c.id}
+            data-enter="chip"
             className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-xs font-medium"
           >
             <span className="h-2 w-2 rounded-full" style={{ background: c.color }} />
@@ -116,15 +118,17 @@ export function ExpensesPage() {
       </div>
 
       {state.expenses.length === 0 ? (
-        <EmptyState
-          title="Nenhuma despesa"
-          desc="Cadastre moradia, alimentação, cartão e o restante do seu orçamento."
-          action={
-            <Button onClick={create}>
-              <Plus size={16} /> Cadastrar gasto
-            </Button>
-          }
-        />
+        <div data-enter="block">
+          <EmptyState
+            title="Nenhuma despesa"
+            desc="Cadastre moradia, alimentação, cartão e o restante do seu orçamento."
+            action={
+              <Button onClick={create}>
+                <Plus size={16} /> Cadastrar gasto
+              </Button>
+            }
+          />
+        </div>
       ) : (
         <div className="space-y-2">
           {state.expenses.map((e) => {
@@ -132,6 +136,7 @@ export function ExpensesPage() {
             return (
               <div
                 key={e.id}
+                data-enter="item"
                 className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
               >
                 <div className="min-w-0">
@@ -326,6 +331,6 @@ export function ExpensesPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageEnter>
   )
 }

@@ -12,6 +12,7 @@ import { buildMonthPlan } from '../lib/monthPlan'
 import { getReferenceDate } from '../lib/referenceDate'
 import { fmt } from '../lib/format'
 import { Money } from './ui'
+import { PageEnter } from './PageEnter'
 
 const KIND_LABEL: Record<AgendaEvent['kind'], string> = {
   salary: 'Salário',
@@ -57,8 +58,8 @@ export function AgendaPage() {
   })
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <PageEnter className="space-y-5">
+      <div data-enter="header" className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
             Dia a dia
@@ -85,7 +86,7 @@ export function AgendaPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
             Valor na conta
           </p>
@@ -94,7 +95,7 @@ export function AgendaPage() {
             Total {fmt(plan.incomeTotal)} · falta {fmt(plan.incomePending)}
           </p>
         </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
             Casamento a pagar
           </p>
@@ -103,7 +104,7 @@ export function AgendaPage() {
             Já marcado {fmt(plan.weddingPaid)} · plano {fmt(plan.weddingTotal)}
           </p>
         </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
             Vida/cartão a pagar
           </p>
@@ -112,7 +113,7 @@ export function AgendaPage() {
             Pagas {fmt(plan.lifePaid)} · total {fmt(plan.lifeTotal)}
           </p>
         </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
             Sobra disponível agora
           </p>
@@ -124,14 +125,14 @@ export function AgendaPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <h3 className="mb-3 font-display text-lg font-bold">Próximos recebimentos</h3>
           {snap.nextIncomes.length === 0 ? (
             <p className="text-sm text-[var(--ink-muted)]">Nada pendente no horizonte.</p>
           ) : (
             <ul className="space-y-2">
               {snap.nextIncomes.map((e) => (
-                <li key={e.id} className="flex items-start justify-between gap-3 text-sm">
+                <li key={e.id} data-enter="item" className="flex items-start justify-between gap-3 text-sm">
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--ink)]">{e.label}</p>
                     <p className="text-xs text-[var(--ink-muted)]">
@@ -145,14 +146,14 @@ export function AgendaPage() {
             </ul>
           )}
         </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <h3 className="mb-3 font-display text-lg font-bold">Próximos pagamentos (vida)</h3>
           {snap.nextExpenses.length === 0 ? (
             <p className="text-sm text-[var(--ink-muted)]">Nenhuma despesa futura no horizonte.</p>
           ) : (
             <ul className="space-y-2">
               {snap.nextExpenses.map((e) => (
-                <li key={e.id} className="flex items-start justify-between gap-3 text-sm">
+                <li key={e.id} data-enter="item" className="flex items-start justify-between gap-3 text-sm">
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--ink)]">{e.label}</p>
                     <p className="text-xs text-[var(--ink-muted)]">
@@ -180,6 +181,7 @@ export function AgendaPage() {
           <button
             key={id}
             type="button"
+            data-enter="chip"
             onClick={() => setFilter(id)}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
               filter === id
@@ -194,7 +196,7 @@ export function AgendaPage() {
 
       <div className="space-y-3">
         {visibleDays.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--ink-muted)]">
+          <div data-enter="block" className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--ink-muted)]">
             Nenhum lançamento neste filtro.
           </div>
         )}
@@ -223,6 +225,7 @@ export function AgendaPage() {
           return (
             <section
               key={day.date}
+              data-enter="item"
               className={`rounded-2xl border p-4 ${
                 day.isToday
                   ? 'border-[var(--rose)] bg-[var(--accent-soft)]/40'
@@ -305,6 +308,6 @@ export function AgendaPage() {
           )
         })}
       </div>
-    </div>
+    </PageEnter>
   )
 }

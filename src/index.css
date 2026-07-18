@@ -112,48 +112,6 @@ body {
   mask-image: linear-gradient(180deg, transparent, #000 18%, #000 70%, transparent);
 }
 
-.app-menu-panel {
-  animation: app-menu-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.app-menu-tile {
-  animation: app-menu-fade 0.35s ease both;
-}
-
-.app-menu-tile:nth-child(1) { animation-delay: 0.04s; }
-.app-menu-tile:nth-child(2) { animation-delay: 0.07s; }
-.app-menu-tile:nth-child(3) { animation-delay: 0.1s; }
-.app-menu-tile:nth-child(4) { animation-delay: 0.13s; }
-
-@keyframes app-menu-up {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes app-menu-fade {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app-menu-panel,
-  .app-menu-tile {
-    animation: none;
-  }
-}
-
 /* Inputs maiores no touch */
 @media (pointer: coarse) {
   input,

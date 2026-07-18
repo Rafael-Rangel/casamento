@@ -6,6 +6,7 @@ import { buildWeddingSchedule, schedulePendingByItem, scheduleTotals, TAG_COLORS
 import { fmt, uid } from '../lib/format'
 import type { WeddingFlexItem } from '../types/finance'
 import { Button, Field, Input, Modal, Money, Select } from './ui'
+import { PageEnter } from './PageEnter'
 
 const TAG_OPTIONS = Object.keys(TAG_LABEL)
 
@@ -92,8 +93,8 @@ export function WeddingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-4">
-      <header className="text-center">
+    <PageEnter className="mx-auto max-w-lg space-y-4">
+      <header data-enter="header" className="text-center">
         <h1 className="font-display text-2xl font-extrabold text-[var(--ink)]">
           Casamento {state.wedding.dateLabel}
         </h1>
@@ -102,7 +103,7 @@ export function WeddingPage() {
         </p>
       </header>
 
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <p className="mb-2 text-sm font-bold text-[var(--ink)]">Orçamento para o plano</p>
         <p className="text-xs text-[var(--ink-muted)]">
           Dinheiro disponível para cobrir o cronograma (receitas − vida/cartão). A “sobra
@@ -123,16 +124,17 @@ export function WeddingPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
           <p className="text-xs text-[var(--ink-muted)]">Budget/mês</p>
           <p className="text-base font-bold text-[var(--positive)]">{fmt(avgBudget, true)}</p>
         </div>
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
           <p className="text-xs text-[var(--ink-muted)]">Total plano</p>
           <p className="text-base font-bold text-[var(--positive)]">{fmt(totalSavings, true)}</p>
         </div>
         <button
           type="button"
+          data-enter="block"
           onClick={() => setShowDeficit(!showDeficit)}
           className={`rounded-2xl border p-3 text-center transition active:scale-95 ${
             stillNeedAcrossMonths === 0
@@ -158,7 +160,7 @@ export function WeddingPage() {
       </div>
 
       {showDeficit && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+        <div data-enter="block" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
           <p className="font-bold text-amber-200">Quanto falta ganhar a mais</p>
           <p className="mt-1 text-sm text-amber-100/80">
             Soma dos meses em que o que ainda falta pagar (sem check) passa do orçamento.
@@ -217,6 +219,7 @@ export function WeddingPage() {
           <button
             key={id}
             type="button"
+            data-enter="chip"
             onClick={() => setTab(id)}
             className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition ${
               tab === id
@@ -242,6 +245,7 @@ export function WeddingPage() {
                 <button
                   key={s.key}
                   type="button"
+                  data-enter="chip"
                   onClick={() => setActiveMonth(i)}
                   className={`relative flex-shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition ${
                     activeMonth === i
@@ -258,7 +262,7 @@ export function WeddingPage() {
             })}
           </div>
 
-          <div className="mb-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div data-enter="block" className="mb-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <div className="mb-1 flex items-center justify-between">
               <h2 className="font-bold text-[var(--ink)]">
                 {m.emoji} {m.label}
@@ -320,6 +324,7 @@ export function WeddingPage() {
                     <button
                       key={`${m.short}-${p.name}`}
                       type="button"
+                      data-enter="item"
                       onClick={() => toggleWeddingCheck(m.short, p.name)}
                       className={`flex w-full items-center justify-between rounded-xl p-2 text-left transition active:scale-[0.99] ${
                         done
@@ -374,7 +379,7 @@ export function WeddingPage() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <div className="mb-2 flex justify-between text-xs text-[var(--ink-muted)]">
               <span>Orçamento acumulado até {m.short}</span>
               <span className="font-semibold text-[var(--positive)]">
@@ -412,7 +417,7 @@ export function WeddingPage() {
 
       {tab === 'resumo' && (
         <div className="space-y-3">
-          <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
                 <p className="font-bold text-[var(--ink)]">Itens flexíveis</p>
@@ -437,6 +442,7 @@ export function WeddingPage() {
                 {activeFlexItems(state.wedding.flexItems).map((item) => (
                   <li
                     key={item.id}
+                    data-enter="item"
                     className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2"
                   >
                     <div className="min-w-0">
@@ -477,10 +483,10 @@ export function WeddingPage() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="mb-3 font-bold text-[var(--ink)]">Já pago (histórico)</p>
             {state.wedding.alreadyPaid.map((item) => (
-              <div key={item.name} className="flex justify-between py-1 text-sm">
+              <div key={item.name} data-enter="item" className="flex justify-between py-1 text-sm">
                 <span className="text-[var(--ink-muted)]">{item.name}</span>
                 <span className="font-semibold text-[var(--positive)]">
                   {fmt(item.amount, true)}
@@ -493,13 +499,14 @@ export function WeddingPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="mb-3 font-bold text-[var(--ink)]">Cronograma ainda a pagar</p>
             {pendingByItem.length === 0 ? (
               <p className="text-sm text-[var(--ink-muted)]">Tudo marcado como pago no cronograma.</p>
             ) : pendingByItem.map((item) => (
               <div
                 key={item.name}
+                data-enter="item"
                 className="flex justify-between border-b border-[var(--surface-2)] py-1 text-sm last:border-0"
               >
                 <span className="text-[var(--ink-muted)]">{item.name}</span>
@@ -513,13 +520,13 @@ export function WeddingPage() {
           </div>
 
           {deferred.length > 0 && (
-            <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-4">
+            <div data-enter="block" className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-4">
               <p className="mb-2 font-bold text-[var(--ink)]">Para depois do casamento</p>
               <p className="mb-3 text-xs text-[var(--ink-muted)]">
                 Fora do cronograma Jul–Dez — planeja quando quiser.
               </p>
               {deferred.map((item) => (
-                <div key={item.id} className="flex justify-between py-1 text-sm">
+                <div key={item.id} data-enter="item" className="flex justify-between py-1 text-sm">
                   <span className="text-[var(--ink-muted)]">{item.name}</span>
                   <span className="font-semibold">{fmt(item.amount, true)}</span>
                 </div>
@@ -576,6 +583,6 @@ export function WeddingPage() {
           </Button>
         </div>
       </Modal>
-    </div>
+    </PageEnter>
   )
 }

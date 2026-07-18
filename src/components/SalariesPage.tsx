@@ -4,6 +4,7 @@ import { useFinance } from '../context/FinanceContext'
 import type { SalarySource } from '../types/finance'
 import { uid } from '../lib/format'
 import { Button, EmptyState, Field, Input, Modal, Money } from './ui'
+import { PageEnter } from './PageEnter'
 
 function blankSalary(): SalarySource {
   const today = new Date().toISOString().slice(0, 10)
@@ -44,8 +45,8 @@ export function SalariesPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <PageEnter className="space-y-5">
+      <div data-enter="header" className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Salários</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -58,20 +59,23 @@ export function SalariesPage() {
       </div>
 
       {state.salaries.length === 0 ? (
-        <EmptyState
-          title="Nenhuma fonte de salário"
-          desc="Cadastre seu salário para projetar a receita fixa mês a mês."
-          action={
-            <Button onClick={create}>
-              <Plus size={16} /> Cadastrar
-            </Button>
-          }
-        />
+        <div data-enter="block">
+          <EmptyState
+            title="Nenhuma fonte de salário"
+            desc="Cadastre seu salário para projetar a receita fixa mês a mês."
+            action={
+              <Button onClick={create}>
+                <Plus size={16} /> Cadastrar
+              </Button>
+            }
+          />
+        </div>
       ) : (
         <div className="space-y-3">
           {state.salaries.map((s) => (
             <div
               key={s.id}
+              data-enter="item"
               className={`rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 ${
                 !s.active ? 'opacity-60' : ''
               }`}
@@ -187,6 +191,6 @@ export function SalariesPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageEnter>
   )
 }

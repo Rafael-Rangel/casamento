@@ -4,6 +4,7 @@ import { useFinance } from '../context/FinanceContext'
 import { buildMonthPlan, type MonthObligation } from '../lib/monthPlan'
 import { fmt } from '../lib/format'
 import { Money } from './ui'
+import { PageEnter } from './PageEnter'
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1)
@@ -17,7 +18,7 @@ function ItemRow({ item }: { item: MonthObligation }) {
       ? 'A receber'
       : 'Pendente'
   return (
-    <li className="flex items-start justify-between gap-3 text-sm">
+    <li data-enter="item" className="flex items-start justify-between gap-3 text-sm">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -87,8 +88,8 @@ export function MeuMesPage() {
     .slice(0, 5)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <header>
+    <PageEnter className="mx-auto max-w-2xl space-y-5">
+      <header data-enter="header">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
           Visão do mês
         </p>
@@ -100,7 +101,10 @@ export function MeuMesPage() {
           </p>
       </header>
 
-      <section className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg">
+      <section
+        data-enter="block"
+        className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg"
+      >
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
           Sobra disponível agora
         </p>
@@ -312,7 +316,7 @@ export function MeuMesPage() {
         </p>
       </section>
 
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <section data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="font-display text-lg font-bold">Casamento por categoria</h2>
@@ -330,7 +334,7 @@ export function MeuMesPage() {
               const pct =
                 plan.weddingPending > 0 ? (c.pending / plan.weddingPending) * 100 : 0
               return (
-                <li key={c.tag}>
+                <li key={c.tag} data-enter="item">
                   <div className="mb-1 flex items-center justify-between text-sm">
                     <span className="font-semibold text-[var(--ink)]">{c.label}</span>
                     <span className="tabular-nums text-[var(--ink)]">{fmt(c.pending)}</span>
@@ -349,7 +353,7 @@ export function MeuMesPage() {
       </section>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <section data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <h2 className="font-display text-lg font-bold">Ainda vai entrar</h2>
           <p className="mb-3 text-xs text-[var(--ink-muted)]">
             Conta só na data (salário, parcela, mensalidade 2/3).
@@ -365,7 +369,7 @@ export function MeuMesPage() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <section data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <h2 className="font-display text-lg font-bold">Próximos a pagar</h2>
           <p className="mb-3 text-xs text-[var(--ink-muted)]">
             Casamento + vida/cartão, na ordem do mês.
@@ -382,7 +386,7 @@ export function MeuMesPage() {
         </section>
       </div>
 
-      <section className="space-y-3">
+      <section data-enter="block" className="space-y-3">
         <div>
           <h2 className="font-display text-xl font-bold">Próximos dias</h2>
           <p className="text-xs text-[var(--ink-muted)]">
@@ -398,6 +402,7 @@ export function MeuMesPage() {
           nextDays.map((day) => (
             <div
               key={day.date}
+              data-enter="item"
               className={`rounded-2xl border p-4 ${
                 day.isToday
                   ? 'border-[var(--rose)] bg-[var(--accent-soft)]/50'
@@ -436,6 +441,6 @@ export function MeuMesPage() {
           ))
         )}
       </section>
-    </div>
+    </PageEnter>
   )
 }

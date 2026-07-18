@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   CalendarRange,
   Briefcase,
@@ -27,6 +27,9 @@ import { ExpensesPage } from './components/ExpensesPage'
 import { TimelinePage } from './components/TimelinePage'
 import { AgentPage } from './components/AgentPage'
 import { Button } from './components/ui'
+import { gsap, registerGsap, useGSAP } from './lib/gsapSetup'
+
+registerGsap()
 
 type Tab =
   | 'meumes'
@@ -231,6 +234,8 @@ function MobileMenu({
   onSelect: (id: Tab) => void
   onReset: () => void
 }) {
+  const root = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
     const prev = document.body.style.overflow
@@ -245,19 +250,57 @@ function MobileMenu({
     }
   }, [open, onClose])
 
+  useGSAP(
+    () => {
+      if (!open) return
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (reduced) return
+
+      const q = gsap.utils.selector(root)
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+      tl.from(q('[data-menu="backdrop"]'), { autoAlpha: 0, duration: 0.28 })
+        .from(
+          q('[data-menu="panel"]'),
+          { yPercent: 14, autoAlpha: 0, duration: 0.42 },
+          '-=0.12',
+        )
+        .from(
+          q('[data-menu="tile"]'),
+          {
+            y: 18,
+            autoAlpha: 0,
+            duration: 0.36,
+            stagger: { each: 0.035, from: 'start' },
+          },
+          '-=0.22',
+        )
+    },
+    { scope: root, dependencies: [open], revertOnUpdate: true },
+  )
+
   if (!open) return null
 
   const byId = Object.fromEntries(NAV.map((item) => [item.id, item])) as Record<Tab, NavItem>
 
   return (
-    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+    <div
+      ref={root}
+      className="fixed inset-0 z-50 lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menu"
+    >
       <button
         type="button"
+        data-menu="backdrop"
         className="absolute inset-0 bg-[#070b10]/72 backdrop-blur-md"
         aria-label="Fechar menu"
         onClick={onClose}
       />
-      <div className="app-menu-panel absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] border border-[var(--line)] border-b-0 bg-[var(--surface)]/95 shadow-2xl backdrop-blur-2xl">
+      <div
+        data-menu="panel"
+        className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] border border-[var(--line)] border-b-0 bg-[var(--surface)]/95 shadow-2xl backdrop-blur-2xl"
+      >
         <div className="app-menu-grid pointer-events-none absolute inset-0 opacity-[0.14]" />
         <div className="relative px-4 pb-[max(1.25rem,var(--safe-bottom))] pt-3">
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
@@ -295,8 +338,9 @@ function MobileMenu({
                       <button
                         key={id}
                         type="button"
+                        data-menu="tile"
                         onClick={() => onSelect(id)}
-                        className={`app-menu-tile group relative overflow-hidden rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
+                        className={`group relative overflow-hidden rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
                           active
                             ? 'border-[var(--rose)]/50 bg-gradient-to-br from-[var(--rose)]/25 to-[var(--accent)]/10'
                             : 'border-[var(--line)] bg-[var(--bg0)]/70 hover:border-[var(--accent)]/35'
@@ -343,10 +387,30 @@ function Shell() {
   const [tab, setTab] = useState<Tab>('meumes')
   const [menuOpen, setMenuOpen] = useState(false)
   const { resetAll } = useFinance()
+  const dockRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [tab])
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      mm.add('(max-width: 1023px) and (prefers-reduced-motion: no-preference)', () => {
+        if (!dockRef.current) return
+        gsap.from(dockRef.current, {
+          y: 28,
+          autoAlpha: 0,
+          duration: 0.55,
+          delay: 0.12,
+          ease: 'power3.out',
+          clearProps: 'transform',
+        })
+      })
+      return () => mm.revert()
+    },
+    { dependencies: [] },
+  )
 
   const go = (id: Tab) => {
     setTab(id)
@@ -421,7 +485,7 @@ function Shell() {
         className="app-nav-mobile fixed inset-x-0 bottom-0 z-40 lg:hidden"
         aria-label="Navegação principal"
       >
-        <div className="app-dock mx-auto max-w-lg px-3">
+        <div ref={dockRef} className="app-dock mx-auto max-w-lg px-3">
           <div className="flex items-stretch gap-1 rounded-2xl border border-white/10 bg-[var(--surface)]/90 p-1.5 shadow-[0_-8px_40px_#00000066] backdrop-blur-2xl">
             {dockItems.map((item) => {
               const active = tab === item.id
