@@ -458,23 +458,18 @@ export function WeddingPage() {
                       </div>
                       <Money value={item.amount} className="text-sm" />
                     </div>
-                    <div className="flex shrink-0 gap-1">
+                    <div className="flex shrink-0 gap-2">
                       <Button
                         variant="ghost"
-                        className="px-2"
                         onClick={() => {
                           setFlexForm({ ...item })
                           setFlexOpen(true)
                         }}
                       >
-                        <Pencil size={14} />
+                        <Pencil size={14} /> Editar
                       </Button>
-                      <Button
-                        variant="danger"
-                        className="px-2"
-                        onClick={() => removeFlex(item.id)}
-                      >
-                        <Trash2 size={14} />
+                      <Button variant="danger" onClick={() => removeFlex(item.id)}>
+                        <Trash2 size={14} /> Excluir
                       </Button>
                     </div>
                   </li>
@@ -544,6 +539,11 @@ export function WeddingPage() {
             : 'Novo item do casamento'
         }
         onClose={() => setFlexOpen(false)}
+        footer={
+          <Button className="w-full" onClick={saveFlex}>
+            Salvar item
+          </Button>
+        }
       >
         <div className="space-y-3">
           <Field label="Nome">
@@ -578,9 +578,6 @@ export function WeddingPage() {
               </Select>
             </Field>
           </div>
-          <Button className="w-full" onClick={saveFlex}>
-            Salvar item
-          </Button>
         </div>
       </Modal>
     </PageEnter>

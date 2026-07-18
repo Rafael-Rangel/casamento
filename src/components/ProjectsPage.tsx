@@ -188,7 +188,9 @@ export function ProjectsPage() {
                 <Button variant="ghost" onClick={() => edit(p)}>
                   <Pencil size={14} /> Editar
                 </Button>
-                <Button variant="danger" onClick={() => removeProject(p.id)}>
+                <Button variant="danger" onClick={() => {
+                  if (confirm(`Excluir o projeto “${p.name}”?`)) removeProject(p.id)
+                }}>
                   Excluir
                 </Button>
               </div>
@@ -197,7 +199,22 @@ export function ProjectsPage() {
         </div>
       )}
 
-      <Modal open={open} title="Projeto KoruVision" onClose={() => setOpen(false)} wide>
+      <Modal
+        open={open}
+        title="Projeto KoruVision"
+        onClose={() => setOpen(false)}
+        wide
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={save}>
+              Salvar projeto
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Nome do projeto">
@@ -283,7 +300,7 @@ export function ProjectsPage() {
 
             <div className="mt-3 space-y-2">
               {form.installments.map((inst, idx) => (
-                <div key={inst.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                <div key={inst.id} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                   <Input
                     type="date"
                     value={inst.date}
@@ -308,7 +325,7 @@ export function ProjectsPage() {
                   />
                   <Button
                     variant="ghost"
-                    className="px-2"
+                    className="min-w-11"
                     onClick={() => {
                       setForm({
                         ...form,
@@ -318,7 +335,7 @@ export function ProjectsPage() {
                     }}
                     disabled={form.installments.length <= 1}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={14} /> Remover
                   </Button>
                 </div>
               ))}
@@ -428,13 +445,6 @@ export function ProjectsPage() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </Field>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={save}>Salvar projeto</Button>
-          </div>
         </div>
       </Modal>
     </PageEnter>

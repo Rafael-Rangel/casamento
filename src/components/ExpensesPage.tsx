@@ -154,7 +154,7 @@ export function ExpensesPage() {
                     <button
                       type="button"
                       onClick={() => togglePaid(e)}
-                      className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                      className={`rounded-full px-3 py-2 text-xs font-bold ${
                         paid
                           ? 'bg-emerald-500/15 text-emerald-700'
                           : 'bg-amber-500/15 text-amber-800'
@@ -172,12 +172,17 @@ export function ExpensesPage() {
                     {e.notes ? ` · ${e.notes}` : ''}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <Money value={-e.amount} className="text-lg" />
-                  <Button variant="ghost" className="px-2" onClick={() => edit(e)}>
-                    <Pencil size={14} />
+                  <Button variant="ghost" onClick={() => edit(e)}>
+                    <Pencil size={14} /> Editar
                   </Button>
-                  <Button variant="danger" className="px-2" onClick={() => removeExpense(e.id)}>
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      if (confirm(`Excluir a despesa “${e.name}”?`)) removeExpense(e.id)
+                    }}
+                  >
                     Excluir
                   </Button>
                 </div>
@@ -187,7 +192,21 @@ export function ExpensesPage() {
         </div>
       )}
 
-      <Modal open={open} title="Despesa" onClose={() => setOpen(false)}>
+      <Modal
+        open={open}
+        title="Despesa"
+        onClose={() => setOpen(false)}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={save}>
+              Salvar
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-3">
           <Field label="Nome">
             <Input
@@ -297,16 +316,24 @@ export function ExpensesPage() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </Field>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={save}>Salvar</Button>
-          </div>
         </div>
       </Modal>
 
-      <Modal open={catOpen} title="Nova categoria" onClose={() => setCatOpen(false)}>
+      <Modal
+        open={catOpen}
+        title="Nova categoria"
+        onClose={() => setCatOpen(false)}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setCatOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={saveCategory}>
+              Criar
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-3">
           <Field label="Nome">
             <Input
@@ -323,12 +350,6 @@ export function ExpensesPage() {
               className="h-11"
             />
           </Field>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCatOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={saveCategory}>Criar</Button>
-          </div>
         </div>
       </Modal>
     </PageEnter>

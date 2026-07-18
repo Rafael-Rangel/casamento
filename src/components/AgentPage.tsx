@@ -373,7 +373,7 @@ export function AgentPage() {
 
       <form
         data-enter="block"
-        className="sticky bottom-[calc(var(--nav-h)+var(--safe-bottom)+0.5rem)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-2xl lg:bottom-4"
+        className="sticky bottom-[calc(var(--nav-h)+var(--safe-bottom)+0.75rem)] z-30 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-2xl lg:bottom-4"
         onSubmit={(e) => {
           e.preventDefault()
           send()
@@ -384,6 +384,7 @@ export function AgentPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ex: cria um projeto de R$ 4.000, 50% hoje e 50% em agosto..."
+          className="text-base"
         />
         <div className="mt-2 flex items-center justify-between gap-2">
           <p className="text-[10px] text-[var(--ink-faint)]">
@@ -391,7 +392,7 @@ export function AgentPage() {
               ? `${limits.requests.remaining} msgs restantes hoje`
               : 'Limite atualiza após enviar'}
           </p>
-          <Button disabled={loading || !input.trim()} type="submit">
+          <Button disabled={loading || !input.trim()} type="submit" className="min-h-11 shrink-0">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Bot size={16} />}
             Enviar
           </Button>

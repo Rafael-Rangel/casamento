@@ -143,7 +143,7 @@ export function MeuMesPage() {
             </div>
             {editingCash ? (
               <form
-                className="mt-2 flex items-center gap-2"
+                className="mt-2 space-y-2"
                 onSubmit={(e) => {
                   e.preventDefault()
                   const amount = Number(cashDraft.replace(',', '.'))
@@ -161,11 +161,23 @@ export function MeuMesPage() {
                   inputMode="decimal"
                   value={cashDraft}
                   onChange={(e) => setCashDraft(e.target.value)}
-                  className="w-full rounded-lg border border-white/20 bg-black/30 px-2 py-1 text-sm font-bold text-white outline-none"
+                  className="w-full rounded-xl border border-white/20 bg-black/30 px-3 py-3 text-base font-bold text-white outline-none"
                 />
-                <button type="submit" className="text-[10px] font-bold text-[#7bd3a0]">
-                  OK
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCash(false)}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-white/20 text-sm font-semibold text-white/70"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-[#7bd3a0]/20 text-sm font-bold text-[#7bd3a0]"
+                  >
+                    Salvar
+                  </button>
+                </div>
               </form>
             ) : (
               <button

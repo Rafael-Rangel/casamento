@@ -119,7 +119,12 @@ export function SalariesPage() {
                 >
                   <Power size={14} /> {s.active ? 'Encerrar' : 'Reativar'}
                 </Button>
-                <Button variant="danger" onClick={() => removeSalary(s.id)}>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    if (confirm(`Excluir o salário “${s.name}”?`)) removeSalary(s.id)
+                  }}
+                >
                   Excluir
                 </Button>
               </div>
@@ -128,7 +133,21 @@ export function SalariesPage() {
         </div>
       )}
 
-      <Modal open={open} title="Fonte de salário" onClose={() => setOpen(false)}>
+      <Modal
+        open={open}
+        title="Fonte de salário"
+        onClose={() => setOpen(false)}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={save}>
+              Salvar
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-3">
           <Field label="Nome da fonte">
             <Input
@@ -175,20 +194,15 @@ export function SalariesPage() {
               />
             </Field>
           </div>
-          <label className="flex items-center gap-2 text-sm text-[var(--ink)]">
+          <label className="flex min-h-11 items-center gap-3 text-sm text-[var(--ink)]">
             <input
               type="checkbox"
+              className="h-5 w-5"
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />
             Fonte ativa
           </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={save}>Salvar</Button>
-          </div>
         </div>
       </Modal>
     </PageEnter>
