@@ -14,6 +14,7 @@ type PageEnterProps = {
  * Entrada profissional da página via GSAP + useGSAP.
  * Marque elementos com data-enter="header" | "block" | "item" | "chip".
  * Sem contagem de números — só movimento e fade.
+ * clearProps no fim evita itens “sumirem” no mobile.
  */
 export function PageEnter({ children, className, replayKey }: PageEnterProps) {
   const root = useRef<HTMLDivElement>(null)
@@ -21,63 +22,71 @@ export function PageEnter({ children, className, replayKey }: PageEnterProps) {
   useGSAP(
     () => {
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (reduced) return
-
       const q = gsap.utils.selector(root)
       const header = q('[data-enter="header"]')
       const blocks = q('[data-enter="block"]')
       const chips = q('[data-enter="chip"]')
       const items = q('[data-enter="item"]')
+      const all = [...header, ...blocks, ...chips, ...items]
+
+      if (reduced) {
+        gsap.set(all, { clearProps: 'all' })
+        return
+      }
+
+      if (header.length) gsap.set(header, { opacity: 0, y: 22 })
+      if (blocks.length) gsap.set(blocks, { opacity: 0, y: 18 })
+      if (chips.length) gsap.set(chips, { opacity: 0, y: 10, scale: 0.96 })
+      if (items.length) gsap.set(items, { opacity: 0, y: 12 })
 
       const tl = gsap.timeline({
         defaults: { ease: 'power3.out', overwrite: 'auto' },
+        onComplete: () => {
+          gsap.set(all, { clearProps: 'all' })
+        },
       })
 
       if (header.length) {
-        tl.from(header, {
-          autoAlpha: 0,
-          y: 26,
-          duration: 0.58,
-        })
+        tl.to(header, { opacity: 1, y: 0, duration: 0.5 })
       }
 
       if (blocks.length) {
-        tl.from(
+        tl.to(
           blocks,
           {
-            autoAlpha: 0,
-            y: 20,
-            duration: 0.5,
-            stagger: { each: 0.07, from: 'start' },
+            opacity: 1,
+            y: 0,
+            duration: 0.45,
+            stagger: { each: 0.06, from: 'start' },
           },
-          header.length ? '-=0.32' : 0,
+          header.length ? '-=0.28' : 0,
         )
       }
 
       if (chips.length) {
-        tl.from(
+        tl.to(
           chips,
           {
-            autoAlpha: 0,
-            y: 10,
-            scale: 0.94,
-            duration: 0.36,
-            stagger: 0.028,
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.32,
+            stagger: 0.025,
           },
-          '-=0.36',
+          '-=0.3',
         )
       }
 
       if (items.length) {
-        tl.from(
+        tl.to(
           items,
           {
-            autoAlpha: 0,
-            y: 12,
-            duration: 0.38,
-            stagger: { each: 0.032, from: 'start' },
+            opacity: 1,
+            y: 0,
+            duration: 0.34,
+            stagger: { each: 0.028, from: 'start' },
           },
-          '-=0.28',
+          '-=0.24',
         )
       }
     },

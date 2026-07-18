@@ -252,27 +252,42 @@ function MobileMenu({
 
   useGSAP(
     () => {
-      if (!open) return
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (reduced) return
+      if (!open || !root.current) return
 
       const q = gsap.utils.selector(root)
-      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-      tl.from(q('[data-menu="backdrop"]'), { autoAlpha: 0, duration: 0.28 })
-        .from(
-          q('[data-menu="panel"]'),
-          { yPercent: 14, autoAlpha: 0, duration: 0.42 },
-          '-=0.12',
-        )
-        .from(
-          q('[data-menu="tile"]'),
+      const backdrop = q('[data-menu="backdrop"]')
+      const panel = q('[data-menu="panel"]')
+      const tiles = q('[data-menu="tile"]')
+      const targets = [...backdrop, ...panel, ...tiles]
+
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (reduced) {
+        gsap.set(targets, { clearProps: 'all' })
+        return
+      }
+
+      gsap.set(backdrop, { opacity: 0 })
+      gsap.set(panel, { opacity: 0, y: 36 })
+      gsap.set(tiles, { opacity: 0, y: 14 })
+
+      const tl = gsap.timeline({
+        defaults: { ease: 'power3.out' },
+        onComplete: () => {
+          gsap.set(targets, { clearProps: 'all' })
+        },
+      })
+
+      tl.to(backdrop, { opacity: 1, duration: 0.22 })
+        .to(panel, { opacity: 1, y: 0, duration: 0.38 }, '-=0.08')
+        .to(
+          tiles,
           {
-            y: 18,
-            autoAlpha: 0,
-            duration: 0.36,
-            stagger: { each: 0.035, from: 'start' },
+            opacity: 1,
+            y: 0,
+            duration: 0.3,
+            stagger: 0.028,
           },
-          '-=0.22',
+          '-=0.18',
         )
     },
     { scope: root, dependencies: [open], revertOnUpdate: true },
@@ -293,25 +308,26 @@ function MobileMenu({
       <button
         type="button"
         data-menu="backdrop"
-        className="absolute inset-0 bg-[#070b10]/72 backdrop-blur-md"
+        className="absolute inset-0 bg-[#070b10]/75"
         aria-label="Fechar menu"
         onClick={onClose}
       />
       <div
         data-menu="panel"
-        className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] border border-[var(--line)] border-b-0 bg-[var(--surface)]/95 shadow-2xl backdrop-blur-2xl"
+        className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col rounded-t-[1.75rem] border border-[var(--line)] border-b-0 bg-[var(--surface)] shadow-2xl"
       >
-        <div className="app-menu-grid pointer-events-none absolute inset-0 opacity-[0.14]" />
-        <div className="relative px-4 pb-[max(1.25rem,var(--safe-bottom))] pt-3">
-          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
-          <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="shrink-0 px-4 pt-3">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
+          <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">
                 Navegação
               </p>
-              <h2 className="font-display text-2xl font-extrabold text-[var(--ink)]">Todas as seções</h2>
+              <h2 className="font-display text-2xl font-extrabold text-[var(--ink)]">
+                Todas as seções
+              </h2>
               <p className="mt-1 text-xs text-[var(--ink-muted)]">
-                Escolha um módulo — tudo sincronizado entre aparelhos.
+                {NAV.length} módulos · toque para abrir
               </p>
             </div>
             <button
@@ -323,14 +339,16 @@ function MobileMenu({
               <X size={18} />
             </button>
           </div>
+        </div>
 
-          <div className="space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,var(--safe-bottom))] [-webkit-overflow-scrolling:touch]">
+          <div className="space-y-4">
             {NAV_GROUPS.map((group) => (
               <section key={group.title}>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink-faint)]">
                   {group.title}
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   {group.ids.map((id) => {
                     const item = byId[id]
                     const active = tab === id
@@ -340,14 +358,14 @@ function MobileMenu({
                         type="button"
                         data-menu="tile"
                         onClick={() => onSelect(id)}
-                        className={`group relative overflow-hidden rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
+                        className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
                           active
-                            ? 'border-[var(--rose)]/50 bg-gradient-to-br from-[var(--rose)]/25 to-[var(--accent)]/10'
-                            : 'border-[var(--line)] bg-[var(--bg0)]/70 hover:border-[var(--accent)]/35'
+                            ? 'border-[var(--rose)]/50 bg-gradient-to-r from-[var(--rose)]/20 to-[var(--accent)]/10'
+                            : 'border-[var(--line)] bg-[var(--bg0)]/80'
                         }`}
                       >
                         <div
-                          className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
                             active
                               ? 'bg-[var(--rose)] text-white'
                               : 'bg-[var(--surface-2)] text-[var(--accent)]'
@@ -355,12 +373,14 @@ function MobileMenu({
                         >
                           <item.icon size={18} strokeWidth={active ? 2.4 : 2} />
                         </div>
-                        <p className="font-display text-sm font-bold text-[var(--ink)]">{item.label}</p>
-                        <p className="mt-0.5 text-[11px] leading-snug text-[var(--ink-muted)]">
-                          {item.hint}
-                        </p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display text-sm font-bold text-[var(--ink)]">
+                            {item.label}
+                          </p>
+                          <p className="text-[11px] text-[var(--ink-muted)]">{item.hint}</p>
+                        </div>
                         {active && (
-                          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-[var(--rose)]" />
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--rose)]" />
                         )}
                       </button>
                     )
@@ -372,7 +392,7 @@ function MobileMenu({
 
           <button
             type="button"
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-xs font-semibold text-[var(--ink-muted)] transition active:scale-[0.99]"
+            className="mt-5 mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-transparent px-3 py-2.5 text-xs font-semibold text-[var(--ink-muted)] transition active:scale-[0.99]"
             onClick={onReset}
           >
             <RotateCcw size={14} /> Resetar dados
@@ -398,14 +418,18 @@ function Shell() {
       const mm = gsap.matchMedia()
       mm.add('(max-width: 1023px) and (prefers-reduced-motion: no-preference)', () => {
         if (!dockRef.current) return
-        gsap.from(dockRef.current, {
-          y: 28,
-          autoAlpha: 0,
-          duration: 0.55,
-          delay: 0.12,
-          ease: 'power3.out',
-          clearProps: 'transform',
-        })
+        gsap.fromTo(
+          dockRef.current,
+          { y: 28, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.55,
+            delay: 0.12,
+            ease: 'power3.out',
+            clearProps: 'all',
+          },
+        )
       })
       return () => mm.revert()
     },
