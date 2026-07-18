@@ -29,7 +29,8 @@ function blankExpense(categoryId: string, date: string): Expense {
     installmentCount: 2,
     endDate: null,
     notes: '',
-    paid: false,
+    /** Padrão: já saiu da conta — atualiza valor na conta + Já saiu + sobra */
+    paid: true,
   }
 }
 
@@ -89,7 +90,7 @@ export function ExpensesPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-[var(--ink)]">Vida e Cartão</h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Marque como paga quando sair da conta. Pendente entra em “Ainda a pagar” no Meu mês.
+            Cadastre o gasto e marque o status: paga baixa a conta; pendente só reserva na sobra.
           </p>
         </div>
         <div className="flex gap-2">
@@ -232,14 +233,14 @@ export function ExpensesPage() {
           </Field>
           <Field
             label="Status de pagamento"
-            hint="Paga = já saiu da conta. Pendente = ainda a pagar no Meu mês."
+            hint="Paga = já saiu (baixa o valor na conta). Pendente = ainda a pagar (só afeta a sobra)."
           >
             <Select
               value={form.paid ? 'paid' : 'pending'}
               onChange={(e) => setForm({ ...form, paid: e.target.value === 'paid' })}
             >
-              <option value="pending">Pendente</option>
-              <option value="paid">Paga</option>
+              <option value="paid">Paga (já saiu da conta)</option>
+              <option value="pending">Pendente (ainda a pagar)</option>
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">

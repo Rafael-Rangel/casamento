@@ -65,7 +65,8 @@ export function MeuMesPage() {
     : format(new Date(plan.today + 'T12:00:00'), "dd/MM/yyyy")
 
   const spentThisMonth = plan.lifePaid + plan.weddingPaid
-  const cashAfterIncome = plan.cashNow + plan.incomePending
+  /** Conta + o que ainda entra − tudo que ainda falta pagar */
+  const afterEverything = plan.leftoverForMe
   const pendingIncomeItems = plan.incomeItems.filter((i) => !i.paid).slice(0, 3)
 
   const payQueue = [
@@ -95,7 +96,7 @@ export function MeuMesPage() {
           {capitalize(plan.monthLabel)}
         </h1>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Uma única verdade: paga = já saiu · pendente = ainda a pagar · sobra = conta − o que falta.
+            Paga baixa a conta e sobe “Já saiu”. Pendente sobe “Ainda a pagar” e reduz a sobra.
           </p>
       </header>
 
@@ -178,7 +179,9 @@ export function MeuMesPage() {
                 >
                   {fmt(plan.cashNow)}
                 </p>
-                <p className="mt-0.5 text-[10px] text-white/40">Toque para editar o saldo</p>
+                <p className="mt-0.5 text-[10px] text-white/40">
+                  Muda ao marcar despesa como paga · toque para editar
+                </p>
               </button>
             )}
             <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2 text-[11px]">
@@ -190,6 +193,14 @@ export function MeuMesPage() {
                 <span className="text-white/45">Já saiu no mês</span>
                 <span className="font-semibold text-[#ef9d86]">{fmt(spentThisMonth)}</span>
               </div>
+              <div className="flex justify-between gap-2 pl-2 text-white/30">
+                <span>↳ vida/cartão pago</span>
+                <span>{fmt(plan.lifePaid)}</span>
+              </div>
+              <div className="flex justify-between gap-2 pl-2 text-white/30">
+                <span>↳ casamento pago</span>
+                <span>{fmt(plan.weddingPaid)}</span>
+              </div>
               <div className="flex justify-between gap-2 text-white/35">
                 <span>Total despesas (pagas + pendentes)</span>
                 <span className="font-semibold">{fmt(plan.mustPayTotal)}</span>
@@ -199,15 +210,19 @@ export function MeuMesPage() {
                 <span className="font-semibold text-sky-300">{fmt(plan.incomePending)}</span>
               </div>
               <div className="flex justify-between gap-2 border-t border-white/10 pt-1.5">
-                <span className="font-semibold text-white/70">Com tudo que falta entrar</span>
+                <span className="font-semibold text-white/70">Depois de tudo (entra − paga)</span>
                 <span
                   className={`font-bold tabular-nums ${
-                    cashAfterIncome >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+                    afterEverything >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
                   }`}
                 >
-                  {fmt(cashAfterIncome)}
+                  {fmt(afterEverything)}
                 </span>
               </div>
+              <p className="text-[10px] text-white/30">
+                {fmt(plan.cashNow)} + {fmt(plan.incomePending)} − {fmt(plan.mustPayPending)}{' '}
+                pendente
+              </p>
             </div>
           </div>
 
@@ -284,18 +299,17 @@ export function MeuMesPage() {
           </div>
         </div>
 
-        {plan.lifePending > 0 && (
-          <p className="mt-3 text-xs text-white/55">
-            Reserva só após o casamento (conta − casamento pendente):{' '}
-            <span
-              className={`font-bold ${
-                plan.leftoverForLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
-              }`}
-            >
-              {fmt(plan.leftoverForLife)}
-            </span>
-          </p>
-        )}
+        <p className="mt-3 text-xs text-white/55">
+          Reserva após casamento (conta − casamento pendente):{' '}
+          <span
+            className={`font-bold ${
+              plan.leftoverForLife >= 0 ? 'text-[#7bd3a0]' : 'text-[#ef9d86]'
+            }`}
+          >
+            {fmt(plan.leftoverForLife)}
+          </span>
+          {plan.lifePending > 0 ? <> · vida pendente {fmt(plan.lifePending)}</> : null}
+        </p>
       </section>
 
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
