@@ -306,7 +306,7 @@ export function WeddingPage() {
               <button
                 type="button"
                 onClick={() => setShowPaid((v) => !v)}
-                className="shrink-0 rounded-full border border-[var(--line)] px-2.5 py-1 text-[10px] font-semibold text-[var(--ink-muted)]"
+                className="shrink-0 rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--ink-muted)]"
               >
                 {showPaid ? 'Ocultar pagos' : `Ver pagos (${hiddenPaidCount})`}
               </button>
