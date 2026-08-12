@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Home,
   RotateCcw,
-  Download,
   Bot,
   Cloud,
   CloudOff,
@@ -16,6 +15,7 @@ import {
   LockKeyhole,
   LayoutGrid,
   X,
+  Gift,
 } from 'lucide-react'
 import { FinanceProvider, useFinance } from './context/FinanceContext'
 import { WeddingPage } from './components/WeddingPage'
@@ -24,10 +24,11 @@ import { MeuMesPage } from './components/MeuMesPage'
 import { SalariesPage } from './components/SalariesPage'
 import { ProjectsPage } from './components/ProjectsPage'
 import { ExpensesPage } from './components/ExpensesPage'
+import { OtherIncomesPage } from './components/OtherIncomesPage'
 import { TimelinePage } from './components/TimelinePage'
 import { AgentPage } from './components/AgentPage'
 import { Button } from './components/ui'
-import { gsap, registerGsap, useGSAP } from './lib/gsapSetup'
+import { EASE, gsap, prefersReducedMotion, registerGsap, useGSAP } from './lib/gsapSetup'
 
 registerGsap()
 
@@ -37,31 +38,109 @@ type Tab =
   | 'wedding'
   | 'projects'
   | 'salaries'
+  | 'extras'
   | 'expenses'
   | 'timeline'
   | 'agent'
 
-type NavItem = { id: Tab; label: string; short: string; hint: string; icon: typeof Home }
+type NavItem = {
+  id: Tab
+  label: string
+  short: string
+  hint: string
+  icon: typeof Home
+  /** Fundo do ícone (menu/dock) */
+  toneBg: string
+  /** Cor do ícone */
+  toneFg: string
+}
 
 const NAV: NavItem[] = [
-  { id: 'meumes', label: 'Meu mês', short: 'Mês', hint: 'Sobra e pendências', icon: Home },
-  { id: 'agenda', label: 'Agenda', short: 'Agenda', hint: 'Dia a dia', icon: CalendarDays },
-  { id: 'wedding', label: 'Casamento', short: 'Casório', hint: 'Cronograma', icon: Heart },
-  { id: 'agent', label: 'Agente', short: 'Agente', hint: 'Assistente IA', icon: Bot },
-  { id: 'projects', label: 'Projetos', short: 'Projetos', hint: 'Receitas de clientes', icon: Briefcase },
-  { id: 'salaries', label: 'Salários', short: 'Salários', hint: 'Fontes fixas', icon: Wallet },
-  { id: 'expenses', label: 'Vida e Cartão', short: 'Vida', hint: 'Gastos do dia a dia', icon: Receipt },
-  { id: 'timeline', label: 'Linha do tempo', short: 'Tempo', hint: 'Projeção mensal', icon: CalendarRange },
-]
-
-const NAV_GROUPS: { title: string; ids: Tab[] }[] = [
-  { title: 'Visão', ids: ['meumes', 'agenda', 'timeline'] },
-  { title: 'Casamento', ids: ['wedding', 'agent'] },
-  { title: 'Dinheiro', ids: ['projects', 'salaries', 'expenses'] },
+  {
+    id: 'meumes',
+    label: 'Meu mês',
+    short: 'Mês',
+    hint: 'Sobra e pendências',
+    icon: Home,
+    toneBg: 'bg-emerald-500/20',
+    toneFg: 'text-emerald-300',
+  },
+  {
+    id: 'agenda',
+    label: 'Agenda',
+    short: 'Agenda',
+    hint: 'Dia a dia',
+    icon: CalendarDays,
+    toneBg: 'bg-sky-500/20',
+    toneFg: 'text-sky-300',
+  },
+  {
+    id: 'wedding',
+    label: 'Casamento',
+    short: 'Casório',
+    hint: 'Cronograma',
+    icon: Heart,
+    toneBg: 'bg-[#e07a5f]/25',
+    toneFg: 'text-[#ef9d86]',
+  },
+  {
+    id: 'agent',
+    label: 'Agente',
+    short: 'Agente',
+    hint: 'Assistente IA',
+    icon: Bot,
+    toneBg: 'bg-teal-500/20',
+    toneFg: 'text-teal-300',
+  },
+  {
+    id: 'projects',
+    label: 'Projetos',
+    short: 'Projetos',
+    hint: 'Receitas de clientes',
+    icon: Briefcase,
+    toneBg: 'bg-cyan-500/20',
+    toneFg: 'text-cyan-300',
+  },
+  {
+    id: 'salaries',
+    label: 'Salários',
+    short: 'Salários',
+    hint: 'Fontes fixas',
+    icon: Wallet,
+    toneBg: 'bg-lime-500/20',
+    toneFg: 'text-lime-300',
+  },
+  {
+    id: 'extras',
+    label: 'Receitas extras',
+    short: 'Extras',
+    hint: 'Presentes e PIX',
+    icon: Gift,
+    toneBg: 'bg-amber-500/20',
+    toneFg: 'text-amber-300',
+  },
+  {
+    id: 'expenses',
+    label: 'Vida e Cartão',
+    short: 'Vida',
+    hint: 'Gastos do dia a dia',
+    icon: Receipt,
+    toneBg: 'bg-orange-500/20',
+    toneFg: 'text-orange-300',
+  },
+  {
+    id: 'timeline',
+    label: 'Linha do tempo',
+    short: 'Tempo',
+    hint: 'Projeção mensal',
+    icon: CalendarRange,
+    toneBg: 'bg-[#6fa8c0]/25',
+    toneFg: 'text-[#8fc0d4]',
+  },
 ]
 
 /** Atalhos fixos no dock mobile */
-const DOCK: Tab[] = ['meumes', 'agenda', 'wedding', 'expenses']
+const DOCK: Tab[] = ['meumes', 'expenses', 'wedding', 'agent']
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -92,8 +171,8 @@ function InstallBanner() {
   return (
     <div className="mb-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-lg">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--rose)]">
-          <Download size={18} />
+        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#f5e8e4]">
+          <img src="/icon-192.png" alt="" className="h-full w-full object-cover" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-[var(--ink)]">Instalar no celular</p>
@@ -257,45 +336,47 @@ function MobileMenu({
       const q = gsap.utils.selector(root)
       const backdrop = q('[data-menu="backdrop"]')
       const panel = q('[data-menu="panel"]')
+      const handle = q('[data-menu="handle"]')
+      const title = q('[data-menu="title"]')
       const tiles = q('[data-menu="tile"]')
-      const targets = [...backdrop, ...panel, ...tiles]
+      const targets = [...backdrop, ...panel, ...handle, ...title, ...tiles]
 
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (reduced) {
+      if (prefersReducedMotion()) {
         gsap.set(targets, { clearProps: 'all' })
         return
       }
 
       gsap.set(backdrop, { opacity: 0 })
-      gsap.set(panel, { opacity: 0, y: 36 })
-      gsap.set(tiles, { opacity: 0, y: 14 })
+      gsap.set(panel, { opacity: 0, yPercent: 10, scale: 0.98 })
+      gsap.set(handle, { opacity: 0, scaleX: 0.5 })
+      gsap.set(title, { opacity: 0, y: 8 })
+      gsap.set(tiles, { opacity: 0, y: 10, scale: 0.94 })
 
       const tl = gsap.timeline({
-        defaults: { ease: 'power3.out' },
-        onComplete: () => {
-          gsap.set(targets, { clearProps: 'all' })
-        },
+        defaults: { ease: 'power2.out' },
+        onComplete: () => gsap.set(targets, { clearProps: 'all' }),
       })
 
-      tl.to(backdrop, { opacity: 1, duration: 0.22 })
-        .to(panel, { opacity: 1, y: 0, duration: 0.38 }, '-=0.08')
+      tl.to(backdrop, { opacity: 1, duration: 0.12 })
+        .to(panel, { opacity: 1, yPercent: 0, scale: 1, duration: 0.22 }, '-=0.04')
+        .to(handle, { opacity: 1, scaleX: 1, duration: 0.14 }, '-=0.14')
+        .to(title, { opacity: 1, y: 0, duration: 0.16 }, '-=0.12')
         .to(
           tiles,
           {
             opacity: 1,
             y: 0,
-            duration: 0.3,
-            stagger: 0.028,
+            scale: 1,
+            duration: 0.16,
+            stagger: 0.015,
           },
-          '-=0.18',
+          '-=0.1',
         )
     },
     { scope: root, dependencies: [open], revertOnUpdate: true },
   )
 
   if (!open) return null
-
-  const byId = Object.fromEntries(NAV.map((item) => [item.id, item])) as Record<Tab, NavItem>
 
   return (
     <div
@@ -317,8 +398,8 @@ function MobileMenu({
         className="absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col rounded-t-[1.75rem] border border-[var(--line)] border-b-0 bg-[var(--surface)] shadow-2xl"
       >
         <div className="shrink-0 px-4 pt-3">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div data-menu="handle" className="mx-auto mb-3 h-1 w-10 origin-center rounded-full bg-white/20" />
+          <div data-menu="title" className="mb-4 flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[var(--accent)]">
                 Navegação
@@ -342,52 +423,34 @@ function MobileMenu({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,var(--safe-bottom))] [-webkit-overflow-scrolling:touch]">
-          <div className="space-y-4">
-            {NAV_GROUPS.map((group) => (
-              <section key={group.title}>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink-faint)]">
-                  {group.title}
-                </p>
-                <div className="space-y-2">
-                  {group.ids.map((id) => {
-                    const item = byId[id]
-                    const active = tab === id
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        data-menu="tile"
-                        onClick={() => onSelect(id)}
-                        className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
-                          active
-                            ? 'border-[var(--rose)]/50 bg-gradient-to-r from-[var(--rose)]/20 to-[var(--accent)]/10'
-                            : 'border-[var(--line)] bg-[var(--bg0)]/80'
-                        }`}
-                      >
-                        <div
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                            active
-                              ? 'bg-[var(--rose)] text-white'
-                              : 'bg-[var(--surface-2)] text-[var(--accent)]'
-                          }`}
-                        >
-                          <item.icon size={18} strokeWidth={active ? 2.4 : 2} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-display text-sm font-bold text-[var(--ink)]">
-                            {item.label}
-                          </p>
-                          <p className="text-[11px] text-[var(--ink-muted)]">{item.hint}</p>
-                        </div>
-                        {active && (
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--rose)]" />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            ))}
+          <div className="grid grid-cols-3 gap-2">
+            {NAV.map((item) => {
+              const active = tab === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-menu="tile"
+                  onClick={() => onSelect(item.id)}
+                  className={`flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-center transition active:scale-[0.97] ${
+                    active
+                      ? 'border-white/25 bg-[var(--surface-2)]'
+                      : 'border-[var(--line)] bg-[var(--bg0)]/80'
+                  }`}
+                >
+                  <div
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl ${item.toneBg} ${item.toneFg} ${
+                      active ? 'ring-2 ring-white/30' : ''
+                    }`}
+                  >
+                    <item.icon size={20} strokeWidth={active ? 2.5 : 2.2} />
+                  </div>
+                  <span className="font-display text-[11px] font-bold leading-tight text-[var(--ink)]">
+                    {item.short}
+                  </span>
+                </button>
+              )
+            })}
           </div>
 
           <button
@@ -418,16 +481,32 @@ function Shell() {
       const mm = gsap.matchMedia()
       mm.add('(max-width: 1023px) and (prefers-reduced-motion: no-preference)', () => {
         if (!dockRef.current) return
+        const buttons = dockRef.current.querySelectorAll('button')
         gsap.fromTo(
           dockRef.current,
-          { y: 28, opacity: 0 },
+          { y: 40, opacity: 0, scale: 0.94 },
           {
             y: 0,
             opacity: 1,
-            duration: 0.55,
-            delay: 0.12,
-            ease: 'power3.out',
-            clearProps: 'all',
+            scale: 1,
+            duration: 0.65,
+            delay: 0.08,
+            ease: EASE.pop,
+            clearProps: 'transform,opacity',
+          },
+        )
+        gsap.fromTo(
+          buttons,
+          { y: 16, opacity: 0, scale: 0.85 },
+          {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 0.45,
+            delay: 0.22,
+            stagger: 0.06,
+            ease: EASE.pop,
+            clearProps: 'transform,opacity',
           },
         )
       })
@@ -445,7 +524,13 @@ function Shell() {
   const menuIsActive = !DOCK.includes(tab)
 
   return (
-    <div className="app-shell mx-auto flex max-w-6xl flex-col gap-4 px-3 pt-3 sm:px-4 sm:pt-5 lg:flex-row lg:gap-6 lg:pb-8">
+    <div
+      className={`app-shell mx-auto flex max-w-6xl flex-col gap-4 px-3 pt-3 sm:px-4 sm:pt-5 lg:flex-row lg:gap-6 lg:pb-8 ${
+        tab === 'agent'
+          ? 'agent-chat-shell gap-2 overflow-hidden !pb-[calc(var(--nav-h)+var(--safe-bottom)+0.35rem)] lg:overflow-visible'
+          : ''
+      }`}
+    >
       <aside className="hidden w-56 shrink-0 lg:block">
         <div className="sticky top-5 space-y-6">
           <div>
@@ -490,11 +575,22 @@ function Shell() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1">
-        <div className="lg:hidden">
-          <CloudBadge />
-          <InstallBanner />
-        </div>
+      <main
+        className={`min-w-0 flex-1 ${
+          tab === 'agent' ? 'flex min-h-0 flex-col' : ''
+        }`}
+      >
+        {tab !== 'agent' && (
+          <div className="lg:hidden">
+            <CloudBadge />
+            <InstallBanner />
+          </div>
+        )}
+        {tab === 'agent' && (
+          <div className="mb-1 shrink-0 lg:hidden">
+            <CloudBadge />
+          </div>
+        )}
         {tab === 'meumes' && <MeuMesPage />}
         {tab === 'wedding' && <WeddingPage />}
         {tab === 'agenda' && <AgendaPage />}
@@ -502,6 +598,7 @@ function Shell() {
         {tab === 'timeline' && <TimelinePage />}
         {tab === 'salaries' && <SalariesPage />}
         {tab === 'projects' && <ProjectsPage />}
+        {tab === 'extras' && <OtherIncomesPage />}
         {tab === 'expenses' && <ExpensesPage />}
       </main>
 
@@ -520,12 +617,16 @@ function Shell() {
                   onClick={() => go(item.id)}
                   aria-current={active ? 'page' : undefined}
                   className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-semibold transition active:scale-95 ${
-                    active
-                      ? 'bg-gradient-to-b from-[var(--rose)]/30 to-[var(--accent)]/10 text-[var(--ink)]'
-                      : 'text-[var(--ink-muted)]'
+                    active ? 'bg-[var(--surface-2)] text-[var(--ink)]' : 'text-[var(--ink-muted)]'
                   }`}
                 >
-                  <item.icon size={18} strokeWidth={active ? 2.4 : 2} />
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg ${item.toneBg} ${item.toneFg} ${
+                      active ? 'ring-1 ring-white/25' : ''
+                    }`}
+                  >
+                    <item.icon size={16} strokeWidth={active ? 2.5 : 2.2} />
+                  </span>
                   <span className="truncate leading-tight">{item.short}</span>
                 </button>
               )
@@ -536,13 +637,11 @@ function Shell() {
               aria-expanded={menuOpen}
               aria-label="Abrir menu de seções"
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-semibold transition active:scale-95 ${
-                menuIsActive || menuOpen
-                  ? 'bg-gradient-to-b from-[var(--accent)]/25 to-transparent text-[var(--ink)]'
-                  : 'text-[var(--ink-muted)]'
+                menuIsActive || menuOpen ? 'bg-[var(--surface-2)] text-[var(--ink)]' : 'text-[var(--ink-muted)]'
               }`}
             >
-              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-current/30">
-                <LayoutGrid size={12} strokeWidth={2.4} />
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-[#c5d0d8]">
+                <LayoutGrid size={16} strokeWidth={2.4} />
               </span>
               <span className="truncate leading-tight">Menu</span>
             </button>

@@ -7,6 +7,7 @@ import {
   capitalizeWeekday,
   cashflowSnapshot,
   type AgendaEvent,
+  type DayAgenda,
 } from '../lib/agenda'
 import { buildMonthPlan } from '../lib/monthPlan'
 import { getReferenceDate } from '../lib/referenceDate'
@@ -18,7 +19,7 @@ const KIND_LABEL: Record<AgendaEvent['kind'], string> = {
   salary: 'Salário',
   project_payment: 'Projeto',
   project_monthly: 'Mensalidade',
-  other_income: 'Receita',
+  other_income: 'Receita extra',
   expense: 'Vida/cartão',
 }
 
@@ -27,6 +28,21 @@ function monthsUntilWeddingEnd(today: Date) {
   const months =
     (end.getFullYear() - today.getFullYear()) * 12 + (end.getMonth() - today.getMonth())
   return Math.max(0, months)
+}
+
+function monthTitle(date: string) {
+  return format(new Date(date + 'T12:00:00'), 'MMMM yyyy', { locale: ptBR })
+}
+
+function groupDaysByMonth(days: DayAgenda[]) {
+  const groups: { key: string; title: string; days: DayAgenda[] }[] = []
+  for (const day of days) {
+    const key = day.date.slice(0, 7)
+    const last = groups[groups.length - 1]
+    if (last && last.key === key) last.days.push(day)
+    else groups.push({ key, title: monthTitle(day.date), days: [day] })
+  }
+  return groups
 }
 
 export function AgendaPage() {
@@ -50,12 +66,20 @@ export function AgendaPage() {
   )
   const plan = useMemo(() => buildMonthPlan(state), [state])
 
-  const visibleDays = days.filter((d) => {
-    if (filter === 'upcoming') return d.isToday || d.isFuture
-    if (filter === 'in') return d.events.some((e) => e.direction === 'in')
-    if (filter === 'out') return d.events.some((e) => e.direction === 'out')
-    return true
-  })
+  const visibleDays = useMemo(() => {
+    const filtered = days.filter((d) => {
+      if (filter === 'upcoming') return d.isToday || d.isFuture
+      if (filter === 'in') return d.events.some((e) => e.direction === 'in')
+      if (filter === 'out') return d.events.some((e) => e.direction === 'out')
+      return true
+    })
+    if (filter === 'upcoming') {
+      return [...filtered].sort((a, b) => a.date.localeCompare(b.date))
+    }
+    return [...filtered].sort((a, b) => b.date.localeCompare(a.date))
+  }, [days, filter])
+
+  const monthGroups = useMemo(() => groupDaysByMonth(visibleDays), [visibleDays])
 
   return (
     <PageEnter className="space-y-5">
@@ -132,7 +156,11 @@ export function AgendaPage() {
           ) : (
             <ul className="space-y-2">
               {snap.nextIncomes.map((e) => (
-                <li key={e.id} data-enter="item" className="flex items-start justify-between gap-3 text-sm">
+                <li
+                  key={e.id}
+                  data-enter="item"
+                  className="flex items-start justify-between gap-3 text-sm"
+                >
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--ink)]">{e.label}</p>
                     <p className="text-xs text-[var(--ink-muted)]">
@@ -153,7 +181,11 @@ export function AgendaPage() {
           ) : (
             <ul className="space-y-2">
               {snap.nextExpenses.map((e) => (
-                <li key={e.id} data-enter="item" className="flex items-start justify-between gap-3 text-sm">
+                <li
+                  key={e.id}
+                  data-enter="item"
+                  className="flex items-start justify-between gap-3 text-sm"
+                >
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--ink)]">{e.label}</p>
                     <p className="text-xs text-[var(--ink-muted)]">
@@ -173,7 +205,7 @@ export function AgendaPage() {
         {(
           [
             ['upcoming', 'A partir de hoje'],
-            ['all', 'Todos os dias'],
+            ['all', 'Todos (recentes 1º)'],
             ['in', 'Só entradas'],
             ['out', 'Só saídas'],
           ] as const
@@ -194,119 +226,146 @@ export function AgendaPage() {
         ))}
       </div>
 
-      <div className="space-y-3">
-        {visibleDays.length === 0 && (
-          <div data-enter="block" className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--ink-muted)]">
+      <div className="space-y-5">
+        {monthGroups.length === 0 && (
+          <div
+            data-enter="block"
+            className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-8 text-center text-sm text-[var(--ink-muted)]"
+          >
             Nenhum lançamento neste filtro.
           </div>
         )}
 
-        {visibleDays.map((day) => {
-          const events =
-            filter === 'in'
-              ? day.events.filter((e) => e.direction === 'in')
-              : filter === 'out'
-                ? day.events.filter((e) => e.direction === 'out')
-                : day.events
+        {monthGroups.map((group) => (
+          <div key={group.key} className="space-y-3">
+            <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 bg-[var(--bg0)]/90 px-1 py-2 backdrop-blur">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+                {group.title}
+              </p>
+              <div className="h-px flex-1 bg-[var(--line)]" />
+            </div>
 
-          if (events.length === 0 && !day.isToday) return null
+            {group.days.map((day) => {
+              const events =
+                filter === 'in'
+                  ? day.events.filter((e) => e.direction === 'in')
+                  : filter === 'out'
+                    ? day.events.filter((e) => e.direction === 'out')
+                    : day.events
 
-          const futureBadge =
-            day.isFuture && events.some((e) => e.direction === 'in') && events.some((e) => e.direction === 'out')
-              ? 'Entradas e saídas'
-              : day.isFuture && events.some((e) => e.direction === 'in')
-                ? 'A receber'
-                : day.isFuture && events.some((e) => e.direction === 'out')
-                  ? 'A pagar'
-                  : day.isFuture
-                    ? 'Futuro'
-                    : null
+              if (events.length === 0 && !day.isToday) return null
 
-          return (
-            <section
-              key={day.date}
-              data-enter="item"
-              className={`rounded-2xl border p-4 ${
-                day.isToday
-                  ? 'border-[var(--rose)] bg-[var(--accent-soft)]/40'
-                  : 'border-[var(--line)] bg-[var(--surface)]'
-              }`}
-            >
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-display text-lg font-bold capitalize text-[var(--ink)]">
-                      {capitalizeWeekday(day.weekday)}
-                    </h2>
-                    {day.isToday && (
-                      <span className="rounded-full bg-[var(--rose)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                        Hoje
-                      </span>
-                    )}
-                    {day.isPast && !day.isToday && (
-                      <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ink-muted)]">
-                        Já passou
-                      </span>
-                    )}
-                    {futureBadge && (
-                      <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
-                        {futureBadge}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs capitalize text-[var(--ink-muted)]">{day.label}</p>
-                </div>
-                <div className="text-right text-xs">
-                  {day.totalIn > 0 && (
-                    <p className="font-semibold text-[var(--positive)]">+ {fmt(day.totalIn)}</p>
-                  )}
-                  {day.totalOut > 0 && (
-                    <p className="font-semibold text-[var(--negative)]">− {fmt(day.totalOut)}</p>
-                  )}
-                </div>
-              </div>
+              const futureBadge =
+                day.isFuture &&
+                events.some((e) => e.direction === 'in') &&
+                events.some((e) => e.direction === 'out')
+                  ? 'Entradas e saídas'
+                  : day.isFuture && events.some((e) => e.direction === 'in')
+                    ? 'A receber'
+                    : day.isFuture && events.some((e) => e.direction === 'out')
+                      ? 'A pagar'
+                      : day.isFuture
+                        ? 'Futuro'
+                        : null
 
-              {events.length === 0 ? (
-                <p className="text-sm text-[var(--ink-muted)]">Sem lançamentos neste dia.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {events.map((e) => (
-                    <li
-                      key={e.id}
-                      className={`flex items-start justify-between gap-3 rounded-xl px-3 py-2 ${
-                        day.isPast || day.isToday
-                          ? e.direction === 'in'
-                            ? 'bg-emerald-500/10'
-                            : 'bg-orange-500/10'
-                          : 'bg-[var(--surface-2)]'
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              e.direction === 'in'
-                                ? 'bg-emerald-500/15 text-emerald-300'
-                                : 'bg-orange-500/15 text-orange-300'
-                            }`}
-                          >
-                            {KIND_LABEL[e.kind]}
+              const [y, m, d] = day.date.split('-')
+
+              return (
+                <section
+                  key={day.date}
+                  data-enter="item"
+                  className={`rounded-2xl border p-4 ${
+                    day.isToday
+                      ? 'border-[var(--rose)] bg-[var(--accent-soft)]/40'
+                      : 'border-[var(--line)] bg-[var(--surface)]'
+                  }`}
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="font-display text-lg font-bold capitalize text-[var(--ink)]">
+                          {capitalizeWeekday(day.weekday)}
+                        </h2>
+                        <span className="rounded-lg bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-[var(--ink-muted)]">
+                          {d}
+                          <span className="mx-0.5 text-[var(--ink-faint)]">/</span>
+                          {m}
+                          <span className="mx-0.5 text-[var(--ink-faint)]">/</span>
+                          {y}
+                        </span>
+                        {day.isToday && (
+                          <span className="rounded-full bg-[var(--rose)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Hoje
                           </span>
-                          <span className="text-sm font-semibold text-[var(--ink)]">{e.label}</span>
-                        </div>
-                        <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{e.meta}</p>
+                        )}
+                        {day.isPast && !day.isToday && (
+                          <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-semibold text-[var(--ink-muted)]">
+                            Já passou
+                          </span>
+                        )}
+                        {futureBadge && (
+                          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
+                            {futureBadge}
+                          </span>
+                        )}
                       </div>
-                      <Money
-                        value={e.direction === 'in' ? e.amount : -e.amount}
-                        className="shrink-0 text-sm"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )
-        })}
+                      <p className="text-xs capitalize text-[var(--ink-muted)]">{day.label}</p>
+                    </div>
+                    <div className="text-right text-xs">
+                      {day.totalIn > 0 && (
+                        <p className="font-semibold text-[var(--positive)]">+ {fmt(day.totalIn)}</p>
+                      )}
+                      {day.totalOut > 0 && (
+                        <p className="font-semibold text-[var(--negative)]">− {fmt(day.totalOut)}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {events.length === 0 ? (
+                    <p className="text-sm text-[var(--ink-muted)]">Sem lançamentos neste dia.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {events.map((e) => (
+                        <li
+                          key={e.id}
+                          className={`flex items-start justify-between gap-3 rounded-xl px-3 py-2 ${
+                            day.isPast || day.isToday
+                              ? e.direction === 'in'
+                                ? 'bg-emerald-500/10'
+                                : 'bg-orange-500/10'
+                              : 'bg-[var(--surface-2)]'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                  e.direction === 'in'
+                                    ? 'bg-emerald-500/15 text-emerald-300'
+                                    : 'bg-orange-500/15 text-orange-300'
+                                }`}
+                              >
+                                {KIND_LABEL[e.kind]}
+                              </span>
+                              <span className="text-sm font-semibold text-[var(--ink)]">
+                                {e.label}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{e.meta}</p>
+                          </div>
+                          <Money
+                            value={e.direction === 'in' ? e.amount : -e.amount}
+                            className="shrink-0 text-sm"
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </PageEnter>
   )

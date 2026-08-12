@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { Pencil, Plus } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import type { Expense, ExpenseKind, ExpensePurpose } from '../types/finance'
 import { uid } from '../lib/format'
-import { getReferenceDate } from '../lib/referenceDate'
+import { deviceTodayKey } from '../lib/referenceDate'
 import {
   isExpenseDisplayPaid,
   setExpensePaidFlag,
 } from '../lib/expensePayment'
-import { Button, EmptyState, Field, Input, Modal, Money, Select, Textarea } from './ui'
+import { Button, EmptyState, Field, Input, Modal, Money, MoneyInput, Select, Textarea } from './ui'
 import { PageEnter } from './PageEnter'
 
 const KIND_LABEL: Record<ExpenseKind, string> = {
@@ -35,41 +36,68 @@ function blankExpense(categoryId: string, date: string): Expense {
   }
 }
 
+function expenseSortDate(e: Expense) {
+  return e.date || '0000-00-00'
+}
+
 export function ExpensesPage() {
   const { state, upsertExpense, removeExpense, upsertCategory } = useFinance()
-  const refDate = format(getReferenceDate(state), 'yyyy-MM-dd')
+  const today = deviceTodayKey()
   const [open, setOpen] = useState(false)
   const [catOpen, setCatOpen] = useState(false)
   const [form, setForm] = useState<Expense>(() =>
-    blankExpense(state.categories[0]?.id || 'outros', refDate),
+    blankExpense(state.categories[0]?.id || 'outros', today),
   )
   const [newCat, setNewCat] = useState({ name: '', color: '#2F6B5A' })
 
-  const create = () => {
-    setForm(
-      blankExpense(
-        state.categories[0]?.id || 'outros',
-        format(getReferenceDate(state), 'yyyy-MM-dd'),
-      ),
+  const grouped = useMemo(() => {
+    const sorted = [...state.expenses].sort((a, b) =>
+      expenseSortDate(b).localeCompare(expenseSortDate(a)),
     )
+    const groups: { key: string; title: string; items: Expense[] }[] = []
+    for (const e of sorted) {
+      const key = expenseSortDate(e).slice(0, 7) || '0000-00'
+      let title = key
+      try {
+        const dt = new Date(`${expenseSortDate(e)}T12:00:00`)
+        if (!Number.isNaN(dt.getTime())) {
+          title = format(dt, 'MMMM yyyy', { locale: ptBR })
+        }
+      } catch {
+        /* mantém key */
+      }
+      const last = groups[groups.length - 1]
+      if (last && last.key === key) last.items.push(e)
+      else groups.push({ key, title, items: [e] })
+    }
+    return groups
+  }, [state.expenses])
+
+  const create = () => {
+    setForm(blankExpense(state.categories[0]?.id || 'outros', deviceTodayKey()))
     setOpen(true)
   }
 
   const edit = (e: Expense) => {
-    setForm({ ...e, paid: isExpenseDisplayPaid(e, refDate) })
+    setForm({ ...e, paid: isExpenseDisplayPaid(e, deviceTodayKey()) })
     setOpen(true)
   }
 
   const save = () => {
-    if (!form.name.trim() || form.amount <= 0) return
-    const withStatus = setExpensePaidFlag(form, !!form.paid, refDate)
+    if (!form.name.trim() || !(form.amount > 0) || !form.date) return
+    const withStatus = setExpensePaidFlag(
+      { ...form, id: form.id || uid(), amount: Number(form.amount) },
+      !!form.paid,
+      deviceTodayKey(),
+    )
     upsertExpense(withStatus)
     setOpen(false)
   }
 
   const togglePaid = (expense: Expense) => {
-    const nextPaid = !isExpenseDisplayPaid(expense, refDate)
-    upsertExpense(setExpensePaidFlag(expense, nextPaid, refDate))
+    const ref = deviceTodayKey()
+    const nextPaid = !isExpenseDisplayPaid(expense, ref)
+    upsertExpense(setExpensePaidFlag(expense, nextPaid, ref))
   }
 
   const saveCategory = () => {
@@ -130,65 +158,84 @@ export function ExpensesPage() {
           />
         </div>
       ) : (
-        <div className="space-y-2">
-          {state.expenses.map((e) => {
-            const paid = isExpenseDisplayPaid(e, refDate)
-            return (
-              <div
-                key={e.id}
-                data-enter="item"
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-[var(--ink)]">{e.name}</h3>
-                    <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)]">
-                      {catName(e.categoryId)}
-                    </span>
-                    <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold">
-                      {KIND_LABEL[e.kind]}
-                    </span>
-                    <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)] border border-[var(--line)]">
-                      {(e.purpose || 'life') === 'life' ? 'Vida/cartão' : 'Casamento'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => togglePaid(e)}
-                      className={`rounded-full px-3 py-2 text-xs font-bold ${
-                        paid
-                          ? 'bg-emerald-500/15 text-emerald-700'
-                          : 'bg-amber-500/15 text-amber-800'
-                      }`}
-                    >
-                      {paid ? 'Paga' : 'Pendente'}
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-[var(--ink-muted)]">
-                    {e.date}
-                    {e.kind === 'installment' && e.installmentCount
-                      ? ` · ${e.installmentCount}x`
-                      : ''}
-                    {e.kind === 'recurring' && e.endDate ? ` · até ${e.endDate}` : ''}
-                    {e.notes ? ` · ${e.notes}` : ''}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Money value={-e.amount} className="text-lg" />
-                  <Button variant="ghost" onClick={() => edit(e)}>
-                    <Pencil size={14} /> Editar
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => {
-                      if (confirm(`Excluir a despesa “${e.name}”?`)) removeExpense(e.id)
-                    }}
-                  >
-                    Excluir
-                  </Button>
-                </div>
+        <div className="space-y-5">
+          {grouped.map((group) => (
+            <div key={group.key} className="space-y-2">
+              <div className="flex items-center gap-3 px-1">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+                  {group.title}
+                </p>
+                <div className="h-px flex-1 bg-[var(--line)]" />
               </div>
-            )
-          })}
+              {group.items.map((e) => {
+                const paid = isExpenseDisplayPaid(e, today)
+                const parts = expenseSortDate(e).split('-')
+                const y = parts[0] || '----'
+                const m = parts[1] || '--'
+                const d = parts[2] || '--'
+                return (
+                  <div
+                    key={e.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-[var(--ink)]">{e.name}</h3>
+                        <span className="rounded-lg bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
+                          {d}
+                          <span className="mx-0.5 text-[var(--ink-faint)]">/</span>
+                          {m}
+                          <span className="mx-0.5 text-[var(--ink-faint)]">/</span>
+                          {y}
+                        </span>
+                        <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)]">
+                          {catName(e.categoryId)}
+                        </span>
+                        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold">
+                          {KIND_LABEL[e.kind]}
+                        </span>
+                        <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--ink-muted)] border border-[var(--line)]">
+                          {(e.purpose || 'life') === 'life' ? 'Vida/cartão' : 'Casamento'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePaid(e)}
+                          className={`rounded-full px-3 py-2 text-xs font-bold ${
+                            paid
+                              ? 'bg-emerald-500/15 text-emerald-700'
+                              : 'bg-amber-500/15 text-amber-800'
+                          }`}
+                        >
+                          {paid ? 'Paga' : 'Pendente'}
+                        </button>
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                        {e.kind === 'installment' && e.installmentCount
+                          ? `${e.installmentCount}x`
+                          : ''}
+                        {e.kind === 'recurring' && e.endDate ? ` · até ${e.endDate}` : ''}
+                        {e.notes ? ` · ${e.notes}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Money value={-e.amount} className="text-lg" />
+                      <Button variant="ghost" onClick={() => edit(e)}>
+                        <Pencil size={14} /> Editar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => {
+                          if (confirm(`Excluir a despesa “${e.name}”?`)) removeExpense(e.id)
+                        }}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
       )}
 
@@ -268,13 +315,10 @@ export function ExpensesPage() {
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Valor">
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={form.amount || ''}
-                onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+            <Field label="Valor" hint="Centavos com vírgula: 10,50 · ou 1.545,75">
+              <MoneyInput
+                value={form.amount}
+                onValueChange={(amount) => setForm({ ...form, amount })}
               />
             </Field>
             <Field label={form.kind === 'recurring' ? 'Início' : 'Data'}>

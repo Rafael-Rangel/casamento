@@ -8,12 +8,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { loadState, saveState } from '../lib/storage'
+import { hydrateState, loadState, saveState } from '../lib/storage'
 import { buildProjections } from '../lib/projections'
-import { getReferenceDate } from '../lib/referenceDate'
-import { STORAGE_KEY } from '../lib/defaults'
+import { deviceTodayKey, getReferenceDate } from '../lib/referenceDate'
+import { CASH_OPENING_FRESH, CASH_OPENING_FRESH_AS_OF, STORAGE_KEY } from '../lib/defaults'
 import { applyAgentActions, type AgentAction } from '../lib/agentActions'
-import { applyExpenseCashDelta } from '../lib/expenseCash'
+import { recomputeCashBalance } from '../lib/cashLedger'
 import type {
   CashBalance,
   Category,
@@ -24,6 +24,23 @@ import type {
   SalarySource,
   WeddingState,
 } from '../types/finance'
+
+function withRecomputedCash(s: FinanceState): FinanceState {
+  const expenses = s.expenses.filter((e) => {
+    if ((e.purpose || 'life') !== 'life') return true
+    return !/vestido/i.test(e.name)
+  })
+  return {
+    ...s,
+    expenses,
+    cashBalance: recomputeCashBalance({
+      expenses,
+      otherIncomes: s.otherIncomes,
+      cash: s.cashBalance,
+      throughDate: deviceTodayKey(),
+    }),
+  }
+}
 
 interface FinanceContextValue {
   state: FinanceState
@@ -78,7 +95,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const applyRemoteState = useCallback((remote: FinanceState) => {
     skipNextCloudSaveRef.current = true
-    setState(remote)
+    setState(hydrateState(remote))
   }, [])
 
   const pushCloudState = useCallback(async (nextState: FinanceState) => {
@@ -279,40 +296,39 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           paid: expense.kind === 'unique' ? !!expense.paid : false,
           paidOccurrences: expense.kind === 'unique' ? undefined : expense.paidOccurrences,
         }
-        const prev = s.expenses.find((x) => x.id === normalized.id)
-        const exists = !!prev
-        return {
-          ...s,
-          expenses: exists
-            ? s.expenses.map((x) => (x.id === normalized.id ? normalized : x))
-            : [...s.expenses, normalized],
-          cashBalance: applyExpenseCashDelta(s.cashBalance, prev, normalized) ?? s.cashBalance,
-        }
+        const exists = s.expenses.some((x) => x.id === normalized.id)
+        const expenses = exists
+          ? s.expenses.map((x) => (x.id === normalized.id ? normalized : x))
+          : [...s.expenses, normalized]
+        return withRecomputedCash({ ...s, expenses })
       }),
     removeExpense: (id) =>
-      patch((s) => {
-        const prev = s.expenses.find((x) => x.id === id)
-        return {
+      patch((s) =>
+        withRecomputedCash({
           ...s,
           expenses: s.expenses.filter((x) => x.id !== id),
-          cashBalance: applyExpenseCashDelta(s.cashBalance, prev, undefined) ?? s.cashBalance,
-        }
-      }),
+        }),
+      ),
     upsertOtherIncome: (income) =>
       patch((s) => {
-        const exists = s.otherIncomes.some((x) => x.id === income.id)
-        return {
-          ...s,
-          otherIncomes: exists
-            ? s.otherIncomes.map((x) => (x.id === income.id ? income : x))
-            : [...s.otherIncomes, income],
+        const normalized: OtherIncome = {
+          ...income,
+          received: income.recurring ? false : !!income.received,
+          receivedOccurrences: income.recurring ? income.receivedOccurrences : undefined,
         }
+        const exists = s.otherIncomes.some((x) => x.id === normalized.id)
+        const otherIncomes = exists
+          ? s.otherIncomes.map((x) => (x.id === normalized.id ? normalized : x))
+          : [...s.otherIncomes, normalized]
+        return withRecomputedCash({ ...s, otherIncomes })
       }),
     removeOtherIncome: (id) =>
-      patch((s) => ({
-        ...s,
-        otherIncomes: s.otherIncomes.filter((x) => x.id !== id),
-      })),
+      patch((s) =>
+        withRecomputedCash({
+          ...s,
+          otherIncomes: s.otherIncomes.filter((x) => x.id !== id),
+        }),
+      ),
     upsertCategory: (category) =>
       patch((s) => {
         const exists = s.categories.some((x) => x.id === category.id)
@@ -331,16 +347,35 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     updateWedding: (wedding) =>
       patch((s) => ({ ...s, wedding: { ...s.wedding, ...wedding } })),
     setCashBalance: (cash) =>
-      patch((s) => ({
-        ...s,
-        cashBalance: {
-          ...(s.cashBalance || { amount: 0, asOf: new Date().toISOString().slice(0, 10), notes: '' }),
-          ...cash,
-        },
-      })),
+      patch((s) => {
+        const prev = s.cashBalance || {
+          amount: 0,
+          asOf: deviceTodayKey(),
+          notes: '',
+          openingAmount: CASH_OPENING_FRESH,
+          openingAsOf: CASH_OPENING_FRESH_AS_OF,
+        }
+        // Edição manual = ajusta a BASE do extrato; o valor na conta é recalculado
+        const openingAmount =
+          typeof cash.openingAmount === 'number'
+            ? cash.openingAmount
+            : typeof cash.amount === 'number'
+              ? cash.amount
+              : prev.openingAmount
+        const openingAsOf = cash.openingAsOf || prev.openingAsOf || CASH_OPENING_FRESH_AS_OF
+        return withRecomputedCash({
+          ...s,
+          cashBalance: {
+            ...prev,
+            ...cash,
+            openingAmount,
+            openingAsOf,
+          },
+        })
+      }),
     runAgentActions: (actions) => {
       const result = applyAgentActions(state, actions)
-      setState(result.state)
+      setState(withRecomputedCash(result.state))
       return result.applied
     },
     toggleWeddingCheck: (monthShort, itemName) =>

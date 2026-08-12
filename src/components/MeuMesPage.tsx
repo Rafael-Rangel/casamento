@@ -102,7 +102,7 @@ export function MeuMesPage() {
       </header>
 
       <section
-        data-enter="block"
+        data-enter="hero"
         className="overflow-hidden rounded-[1.75rem] border border-[var(--line)] bg-gradient-to-br from-[#2c2019] via-[#1b232b] to-[#1a2c35] p-5 text-white shadow-lg"
       >
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
@@ -148,14 +148,18 @@ export function MeuMesPage() {
                   e.preventDefault()
                   const amount = Number(cashDraft.replace(',', '.'))
                   if (!Number.isFinite(amount)) return
+                  // Edita a BASE do extrato Nu; a conta é recalculada
                   setCashBalance({
-                    amount,
-                    asOf: format(new Date(), 'yyyy-MM-dd'),
-                    notes: 'Saldo atualizado manualmente',
+                    openingAmount: amount,
+                    openingAsOf: state.cashBalance?.openingAsOf || '2026-07-21',
                   })
                   setEditingCash(false)
                 }}
               >
+                <p className="text-[10px] text-white/50">
+                  Saldo do extrato Nu (base). A conta atual = base − gastos depois do extrato +
+                  extras.
+                </p>
                 <input
                   autoFocus
                   inputMode="decimal"
@@ -175,7 +179,7 @@ export function MeuMesPage() {
                     type="submit"
                     className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-[#7bd3a0]/20 text-sm font-bold text-[#7bd3a0]"
                   >
-                    Salvar
+                    Recalcular
                   </button>
                 </div>
               </form>
@@ -184,7 +188,13 @@ export function MeuMesPage() {
                 type="button"
                 className="mt-1 w-full text-left"
                 onClick={() => {
-                  setCashDraft(String(plan.cashNow))
+                  setCashDraft(
+                    String(
+                      state.cashBalance?.openingAmount ??
+                        state.cashBalance?.amount ??
+                        plan.cashNow,
+                    ),
+                  )
                   setEditingCash(true)
                 }}
               >
@@ -196,7 +206,7 @@ export function MeuMesPage() {
                   {fmt(plan.cashNow)}
                 </p>
                 <p className="mt-0.5 text-[10px] text-white/40">
-                  Muda ao marcar despesa como paga · toque para editar
+                  Calculado do extrato + movimentações · toque para ajustar a base Nu
                 </p>
               </button>
             )}
@@ -245,19 +255,19 @@ export function MeuMesPage() {
           <div className="rounded-xl bg-white/10 px-3 py-3">
             <p className="text-[10px] uppercase tracking-wide text-white/50">Recebimentos do mês</p>
             <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-black/20 px-2 py-2">
+              <div data-enter="chip" className="rounded-lg bg-black/20 px-2 py-2">
                 <p className="text-[9px] uppercase text-white/40">Total</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-[#7bd3a0]">
                   {fmt(plan.incomeTotal)}
                 </p>
               </div>
-              <div className="rounded-lg bg-black/20 px-2 py-2">
+              <div data-enter="chip" className="rounded-lg bg-black/20 px-2 py-2">
                 <p className="text-[9px] uppercase text-white/40">Recebido</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-white">
                   {fmt(plan.incomeReceived)}
                 </p>
               </div>
-              <div className="rounded-lg bg-black/20 px-2 py-2">
+              <div data-enter="chip" className="rounded-lg bg-black/20 px-2 py-2">
                 <p className="text-[9px] uppercase text-white/40">Falta</p>
                 <p className="mt-0.5 text-sm font-bold tabular-nums text-[#ef9d86]">
                   {fmt(plan.incomePending)}
@@ -299,11 +309,17 @@ export function MeuMesPage() {
           <div className="rounded-xl bg-white/10 px-3 py-3">
             <p className="text-[10px] uppercase tracking-wide text-white/50">Ainda a pagar no mês</p>
             <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-              <div className="flex justify-between gap-2 rounded-lg bg-black/20 px-2 py-2">
+              <div
+                data-enter="chip"
+                className="flex justify-between gap-2 rounded-lg bg-black/20 px-2 py-2"
+              >
                 <span className="text-white/45">Casamento</span>
                 <span className="font-semibold text-[#ef9d86]">{fmt(plan.weddingPending)}</span>
               </div>
-              <div className="flex justify-between gap-2 rounded-lg bg-black/20 px-2 py-2">
+              <div
+                data-enter="chip"
+                className="flex justify-between gap-2 rounded-lg bg-black/20 px-2 py-2"
+              >
                 <span className="text-white/45">Vida/cartão</span>
                 <span className="font-semibold text-[#ef9d86]">{fmt(plan.lifePending)}</span>
               </div>

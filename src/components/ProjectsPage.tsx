@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
 import { addMonths, format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import type { Project, ProjectInstallment } from '../types/finance'
 import { uid } from '../lib/format'
 import { monthlyYourShare } from '../lib/projectShare'
+import { deviceTodayKey } from '../lib/referenceDate'
 import { Button, EmptyState, Field, Input, Modal, Money, Textarea } from './ui'
 import { PageEnter } from './PageEnter'
 
 type SplitMode = 'full' | 'half' | 'custom' | 'equal'
 
 function blankProject(): Project {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = deviceTodayKey()
   return {
     id: uid(),
     name: '',
@@ -25,6 +27,11 @@ function blankProject(): Project {
     monthlyEnd: null,
     notes: '',
   }
+}
+
+function formatDayParts(iso: string) {
+  const [y, m, d] = (iso || '0000-00-00').split('-')
+  return { d, m, y }
 }
 
 function applySplit(total: number, closeDate: string, mode: SplitMode, count: number): ProjectInstallment[] {
@@ -61,7 +68,7 @@ function applySplit(total: number, closeDate: string, mode: SplitMode, count: nu
 export function ProjectsPage() {
   const { state, upsertProject, removeProject } = useFinance()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<Project>(blankProject())
+  const [form, setForm] = useState<Project>(blankProject)
   const [splitMode, setSplitMode] = useState<SplitMode>('custom')
   const [equalCount, setEqualCount] = useState(3)
 
@@ -69,6 +76,23 @@ export function ProjectsPage() {
     () => form.installments.reduce((s, i) => s + (Number(i.amount) || 0), 0),
     [form.installments],
   )
+
+  const grouped = useMemo(() => {
+    const sorted = [...state.projects].sort((a, b) =>
+      (b.closeDate || '').localeCompare(a.closeDate || ''),
+    )
+    const groups: { key: string; title: string; items: Project[] }[] = []
+    for (const p of sorted) {
+      const key = (p.closeDate || '0000-00').slice(0, 7)
+      const title = format(new Date((p.closeDate || '2000-01-01') + 'T12:00:00'), 'MMMM yyyy', {
+        locale: ptBR,
+      })
+      const last = groups[groups.length - 1]
+      if (last && last.key === key) last.items.push(p)
+      else groups.push({ key, title, items: [p] })
+    }
+    return groups
+  }, [state.projects])
 
   const create = () => {
     setForm(blankProject())
@@ -133,67 +157,99 @@ export function ProjectsPage() {
           />
         </div>
       ) : (
-        <div className="space-y-3">
-          {state.projects.map((p) => (
-            <div
-              key={p.id}
-              data-enter="item"
-              className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-display text-xl font-bold">{p.name}</h3>
-                  <p className="text-sm text-[var(--ink-muted)]">
-                    {p.client || 'Sem cliente'} · Fechamento {p.closeDate}
-                  </p>
-                </div>
-                <Money value={p.totalValue} className="text-xl" />
+        <div className="space-y-5">
+          {grouped.map((group) => (
+            <div key={group.key} className="space-y-3">
+              <div className="flex items-center gap-3 px-1">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-strong)]">
+                  {group.title}
+                </p>
+                <div className="h-px flex-1 bg-[var(--line)]" />
               </div>
-              <p className="mt-1 text-xs text-[var(--positive)]">Implementação · 100% seu</p>
-
-              <div className="mt-3 space-y-1">
-                {p.installments.map((inst, idx) => (
+              {group.items.map((p) => {
+                const close = formatDayParts(p.closeDate)
+                return (
                   <div
-                    key={inst.id}
-                    className="flex justify-between text-sm text-[var(--ink-muted)]"
+                    key={p.id}
+                    className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4"
                   >
-                    <span>
-                      Parcela {idx + 1} · {inst.date}
-                    </span>
-                    <Money value={inst.amount} />
-                  </div>
-                ))}
-                {p.hasMonthly && (
-                  <div className="space-y-1 border-t border-[var(--line)] pt-2 text-sm">
-                    <div className="flex justify-between text-[var(--ink-muted)]">
-                      <span>
-                        Mensalidade bruta desde {p.monthlyStart}
-                        {p.monthlyEnd ? ` até ${p.monthlyEnd}` : ''}
-                      </span>
-                      <Money value={p.monthlyAmount} />
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-display text-xl font-bold">{p.name}</h3>
+                          <span className="rounded-lg bg-[var(--surface-2)] px-2 py-0.5 font-mono text-[10px] tabular-nums text-[var(--ink-muted)]">
+                            {close.d}
+                            <span className="mx-0.5 text-[var(--ink-faint)]">/</span>
+                            {close.m}
+                            <span className="mx-0.5 text-[var(--ink-faint)]">/</span>
+                            {close.y}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[var(--ink-muted)]">
+                          {p.client || 'Sem cliente'} · Fechamento
+                        </p>
+                      </div>
+                      <Money value={p.totalValue} className="text-xl" />
                     </div>
-                    <div className="flex justify-between font-semibold text-[var(--ink)]">
-                      <span>Sua parte (2/3)</span>
-                      <Money value={monthlyYourShare(p.monthlyAmount)} />
+                    <p className="mt-1 text-xs text-[var(--positive)]">Implementação · 100% seu</p>
+
+                    <div className="mt-3 space-y-1">
+                      {p.installments.map((inst, idx) => {
+                        const parts = formatDayParts(inst.date)
+                        return (
+                          <div
+                            key={inst.id}
+                            className="flex justify-between text-sm text-[var(--ink-muted)]"
+                          >
+                            <span>
+                              Parcela {idx + 1} · {parts.d}/{parts.m}/{parts.y}
+                            </span>
+                            <Money value={inst.amount} />
+                          </div>
+                        )
+                      })}
+                      {p.hasMonthly && (
+                        <div className="space-y-1 border-t border-[var(--line)] pt-2 text-sm">
+                          <div className="flex justify-between text-[var(--ink-muted)]">
+                            <span>
+                              Mensalidade bruta
+                              {p.monthlyStart
+                                ? ` desde ${formatDayParts(p.monthlyStart).d}/${formatDayParts(p.monthlyStart).m}/${formatDayParts(p.monthlyStart).y}`
+                                : ''}
+                              {p.monthlyEnd
+                                ? ` até ${formatDayParts(p.monthlyEnd).d}/${formatDayParts(p.monthlyEnd).m}/${formatDayParts(p.monthlyEnd).y}`
+                                : ''}
+                            </span>
+                            <Money value={p.monthlyAmount} />
+                          </div>
+                          <div className="flex justify-between font-semibold text-[var(--ink)]">
+                            <span>Sua parte (2/3)</span>
+                            <Money value={monthlyYourShare(p.monthlyAmount)} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {p.notes && (
+                      <p className="mt-2 text-xs text-[var(--ink-faint)]">{p.notes}</p>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button variant="ghost" onClick={() => edit(p)}>
+                        <Pencil size={14} /> Editar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => {
+                          if (confirm(`Excluir o projeto “${p.name}”?`)) removeProject(p.id)
+                        }}
+                      >
+                        Excluir
+                      </Button>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {p.notes && (
-                <p className="mt-2 text-xs text-[var(--ink-faint)]">{p.notes}</p>
-              )}
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="ghost" onClick={() => edit(p)}>
-                  <Pencil size={14} /> Editar
-                </Button>
-                <Button variant="danger" onClick={() => {
-                  if (confirm(`Excluir o projeto “${p.name}”?`)) removeProject(p.id)
-                }}>
-                  Excluir
-                </Button>
-              </div>
+                )
+              })}
             </div>
           ))}
         </div>

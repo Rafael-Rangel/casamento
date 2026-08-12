@@ -19,6 +19,7 @@ Regras do domínio:
 - Casamento é mensal, não exige data diária para pagar.
 - Despesas de vida/cartão têm status: paid=true (já saiu da conta) ou paid=false (pendente / ainda a pagar).
 - Ao criar despesa já paga, use "paid":true (baixa o caixa). Despesa futura ou ainda não paga: "paid":false.
+- Receitas extras (presente, PIX, ajuda) usam upsertOtherIncome com received=true (já entrou / sobe o caixa) ou received=false (a receber / Falta entrar).
 - Não invente dados críticos: se faltar valor, cliente, data ou número de parcelas, peça confirmação.
 - Nunca retorne texto fora do JSON.
 
@@ -36,7 +37,7 @@ Ações disponíveis:
   {"type":"removeProject","idOrName":"Website"},
   {"type":"upsertExpense","expense":{"name":"Cartão","amount":500,"categoryId":"cartao","kind":"unique","purpose":"life","date":"2026-07-17","paid":false,"notes":""}},
   {"type":"removeExpense","idOrName":"Cartão"},
-  {"type":"upsertOtherIncome","income":{"name":"Extra","amount":1000,"date":"2026-07-17","recurring":false,"endDate":null,"notes":""}},
+  {"type":"upsertOtherIncome","income":{"name":"Presente","amount":500,"date":"2026-07-17","recurring":false,"endDate":null,"received":true,"notes":""}},
   {"type":"removeOtherIncome","idOrName":"Extra"},
   {"type":"upsertCategory","category":{"name":"Nova categoria","color":"#6C757D"}},
   {"type":"removeCategory","idOrName":"Nova categoria"},

@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import type {
   CashBalance,
   Category,
@@ -10,7 +9,10 @@ import type {
   WeddingFlexItem,
 } from '../types/finance'
 import { applyExpenseCashDelta } from './expenseCash'
+import { applyOtherIncomeCashDelta } from './incomeCash'
+import { recomputeCashBalance } from './cashLedger'
 import { uid } from './format'
+import { deviceTodayKey } from './referenceDate'
 
 type AgentBase = { type: string }
 
@@ -37,7 +39,7 @@ export interface AgentResult {
 }
 
 function todayKey() {
-  return format(new Date(), 'yyyy-MM-dd')
+  return deviceTodayKey()
 }
 
 function byIdOrName<T extends { id: string; name: string }>(items: T[], idOrName: string) {
@@ -162,23 +164,43 @@ export function applyAgentActions(state: FinanceState, actions: AgentAction[]): 
         break
       }
       case 'upsertOtherIncome': {
+        const recurring = action.income.recurring ?? false
+        const prev = action.income.id
+          ? next.otherIncomes.find((i) => i.id === action.income.id)
+          : byIdOrName(next.otherIncomes, action.income.name)
         const income: OtherIncome = {
-          id: action.income.id || uid(),
+          id: action.income.id || prev?.id || uid(),
           name: action.income.name,
           amount: Number(action.income.amount) || 0,
           date: action.income.date || todayKey(),
-          recurring: action.income.recurring ?? false,
+          recurring,
           endDate: action.income.endDate ?? null,
           notes: action.income.notes ?? '',
+          received: recurring ? false : (action.income.received ?? true),
+          receivedOccurrences: recurring
+            ? action.income.receivedOccurrences || prev?.receivedOccurrences
+            : undefined,
         }
-        next = { ...next, otherIncomes: upsert(next.otherIncomes, income) }
-        applied.push(`Receita: ${income.name}`)
+        next = {
+          ...next,
+          otherIncomes: upsert(next.otherIncomes, income),
+          cashBalance:
+            applyOtherIncomeCashDelta(next.cashBalance, prev, income) ?? next.cashBalance,
+        }
+        applied.push(`Receita extra: ${income.name}`)
         break
       }
-      case 'removeOtherIncome':
-        next = { ...next, otherIncomes: next.otherIncomes.filter((i) => i !== byIdOrName(next.otherIncomes, action.idOrName)) }
+      case 'removeOtherIncome': {
+        const prev = byIdOrName(next.otherIncomes, action.idOrName)
+        next = {
+          ...next,
+          otherIncomes: next.otherIncomes.filter((i) => i !== prev),
+          cashBalance:
+            applyOtherIncomeCashDelta(next.cashBalance, prev, undefined) ?? next.cashBalance,
+        }
         applied.push(`Removida receita: ${action.idOrName}`)
         break
+      }
       case 'upsertCategory': {
         const prev = action.category.id ? next.categories.find((c) => c.id === action.category.id) : byIdOrName(next.categories, action.category.name)
         const category: Category = {
@@ -207,27 +229,51 @@ export function applyAgentActions(state: FinanceState, actions: AgentAction[]): 
         applied.push('Saldo atualizado')
         break
       case 'upsertWeddingFlexItem': {
-        const prev = action.item.id ? next.wedding.flexItems.find((i) => i.id === action.item.id) : byIdOrName(next.wedding.flexItems, action.item.name)
+        const prev = action.item.id
+          ? next.wedding.flexItems.find((i) => i.id === action.item.id)
+          : byIdOrName(next.wedding.flexItems, action.item.name)
         const item: WeddingFlexItem = {
           id: action.item.id || prev?.id || uid(),
           name: action.item.name,
           amount: Number(action.item.amount) || 0,
           tag: action.item.tag || prev?.tag || 'casamento',
         }
-        next = { ...next, wedding: { ...next.wedding, flexItems: upsert(next.wedding.flexItems, item) } }
+        const flexItems = upsert(next.wedding.flexItems, item)
+        const demands = [...(next.wedding.demands || [])]
+        const di = demands.findIndex((d) => d.id === item.id)
+        if (di >= 0) {
+          demands[di] = { ...demands[di], name: item.name, amount: item.amount, tag: item.tag }
+        } else {
+          demands.push({
+            id: item.id,
+            name: item.name,
+            amount: item.amount,
+            tag: item.tag,
+            duration: 'until_wedding',
+            startMonth: '2026-07',
+            amountMode: 'total_split',
+            sortOrder: demands.length,
+            active: true,
+            naming: 'parts',
+          })
+        }
+        next = { ...next, wedding: { ...next.wedding, flexItems, demands } }
         applied.push(`Item casamento: ${item.name}`)
         break
       }
-      case 'removeWeddingFlexItem':
+      case 'removeWeddingFlexItem': {
+        const hit = byIdOrName(next.wedding.flexItems, action.idOrName)
         next = {
           ...next,
           wedding: {
             ...next.wedding,
-            flexItems: next.wedding.flexItems.filter((i) => i !== byIdOrName(next.wedding.flexItems, action.idOrName)),
+            flexItems: next.wedding.flexItems.filter((i) => i !== hit),
+            demands: (next.wedding.demands || []).filter((d) => d.id !== hit?.id && d.name !== action.idOrName),
           },
         }
         applied.push(`Removido item do casamento: ${action.idOrName}`)
         break
+      }
       case 'setWeddingCheck': {
         const key = `${action.monthShort}::${action.itemName}`
         next = { ...next, wedding: { ...next.wedding, checked: { ...next.wedding.checked, [key]: action.checked } } }
@@ -239,6 +285,22 @@ export function applyAgentActions(state: FinanceState, actions: AgentAction[]): 
         applied.push(`Horizonte: ${next.projectionMonths} meses`)
         break
     }
+  }
+
+  next = {
+    ...next,
+    expenses: next.expenses.filter(
+      (e) => (e.purpose || 'life') !== 'life' || !/vestido/i.test(e.name),
+    ),
+  }
+  next = {
+    ...next,
+    cashBalance: recomputeCashBalance({
+      expenses: next.expenses,
+      otherIncomes: next.otherIncomes,
+      cash: next.cashBalance,
+      throughDate: todayKey(),
+    }),
   }
 
   return { state: next, applied }

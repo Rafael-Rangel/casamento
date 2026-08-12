@@ -105,7 +105,7 @@ function weddingObligations(
   todayKey: string,
 ): MonthObligation[] {
   const budgets = weddingMonthBudgets(state)
-  const { schedule } = buildWeddingSchedule(budgets, state.wedding.flexItems)
+  const { schedule } = buildWeddingSchedule(budgets, state.wedding)
   const month = schedule.find((m) => m.key === monthKey)
   if (!month) return []
 
@@ -150,7 +150,9 @@ function groupByCategory(items: MonthObligation[]): CategoryTotal[] {
 
 function toObligation(e: AgendaEvent, todayKey: string): MonthObligation {
   const paid =
-    e.kind === 'expense' && typeof e.paid === 'boolean' ? e.paid : e.date <= todayKey
+    (e.kind === 'expense' || e.kind === 'other_income') && typeof e.paid === 'boolean'
+      ? e.paid
+      : e.date <= todayKey
   return {
     id: e.id,
     date: e.date,

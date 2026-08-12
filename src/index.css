@@ -73,6 +73,59 @@ body {
   padding: var(--safe-top) var(--safe-right) 0 var(--safe-left);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    animation: ambient-glow 14s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes ambient-glow {
+  0% {
+    background-position: 0% 0%, 100% 0%, 0 0;
+  }
+  100% {
+    background-position: 4% 2%, 96% 3%, 0 0;
+  }
+}
+
+@keyframes agent-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes agent-rec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
+.agent-typing-dot {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: var(--rose);
+  animation: agent-typing 1s ease-in-out infinite;
+}
+
+.agent-rec-pulse {
+  animation: agent-rec-pulse 1s ease-in-out infinite;
+}
+
 #root {
   isolation: isolate;
 }
@@ -86,6 +139,33 @@ body {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
+}
+
+/* Chat do agente: viewport travada, input sempre no rodapé */
+.app-shell.agent-chat-shell {
+  height: 100dvh;
+  height: 100svh;
+  min-height: 100dvh;
+  min-height: 100svh;
+}
+
+.app-shell.agent-chat-shell > main {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .app-shell.agent-chat-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .app-shell.agent-chat-shell > main {
+    min-height: calc(100dvh - 3rem);
+  }
 }
 
 .app-nav-mobile {

@@ -1,10 +1,17 @@
 import {
   useEffect,
+  useRef,
+  useState,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
+import { createPortal } from 'react-dom'
+import { formatBrMoney, parseBrMoney, sanitizeBrMoneyInput } from '../lib/format'
+import { gsap, prefersReducedMotion, registerGsap, useGSAP } from '../lib/gsapSetup'
+
+registerGsap()
 
 export function Field({
   label,
@@ -32,6 +39,77 @@ const controlClass =
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${controlClass} ${props.className || ''}`} />
 }
+
+/** Input de dinheiro no padrão BR — vírgula = centavos (10,50 / 1.545,75). */
+export function MoneyInput({
+  value,
+  onValueChange,
+  className = '',
+  placeholder = '0,00',
+  disabled,
+  id,
+  name,
+  autoFocus,
+}: {
+  value: number
+  onValueChange: (n: number) => void
+  className?: string
+  placeholder?: string
+  disabled?: boolean
+  id?: string
+  name?: string
+  autoFocus?: boolean
+}) {
+  const [text, setText] = useState(() => formatBrMoney(value))
+  const focused = useRef(false)
+
+  useEffect(() => {
+    if (focused.current) return
+    setText(formatBrMoney(value))
+  }, [value])
+
+  return (
+    <input
+      id={id}
+      name={name}
+      autoFocus={autoFocus}
+      disabled={disabled}
+      type="text"
+      inputMode="decimal"
+      lang="pt-BR"
+      autoComplete="off"
+      placeholder={placeholder}
+      value={text}
+      className={`${controlClass} tabular-nums ${className}`}
+      onFocus={(e) => {
+        focused.current = true
+        // Seleciona tudo pra facilitar digitar de novo
+        requestAnimationFrame(() => e.target.select())
+      }}
+      onChange={(e) => {
+        const next = sanitizeBrMoneyInput(e.target.value)
+        setText(next)
+        // "10," ainda incompleto → trata como 10, sem apagar a vírgula na tela
+        const toParse = next.endsWith(',') ? next.slice(0, -1) : next
+        const parsed = parseBrMoney(toParse)
+        if (Number.isFinite(parsed)) onValueChange(parsed)
+        else if (!next || next === ',' || next === '0,') onValueChange(0)
+      }}
+      onBlur={() => {
+        focused.current = false
+        const parsed = parseBrMoney(text)
+        if (Number.isFinite(parsed) && parsed !== 0) {
+          setText(formatBrMoney(parsed))
+          onValueChange(Math.round(parsed * 100) / 100)
+        } else {
+          setText('')
+          onValueChange(0)
+        }
+      }}
+    />
+  )
+}
+
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={`${controlClass} ${props.className || ''}`} />
@@ -80,6 +158,8 @@ export function Modal({
   footer?: ReactNode
   wide?: boolean
 }) {
+  const root = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
     const prev = document.body.style.overflow
@@ -94,49 +174,89 @@ export function Modal({
     }
   }, [open, onClose])
 
-  if (!open) return null
+  useGSAP(
+    () => {
+      if (!open || !root.current) return
+      const q = gsap.utils.selector(root)
+      const backdrop = q('[data-modal="backdrop"]')
+      const panel = q('[data-modal="panel"]')
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
+      if (prefersReducedMotion()) {
+        gsap.set([backdrop, panel], { clearProps: 'all' })
+        return
+      }
+
+      gsap.set(backdrop, { opacity: 0 })
+      gsap.set(panel, { opacity: 0 })
+      gsap
+        .timeline({
+          onComplete: () => gsap.set([backdrop, panel], { clearProps: 'opacity' }),
+        })
+        .to(backdrop, { opacity: 1, duration: 0.15 })
+        .to(panel, { opacity: 1, duration: 0.18 }, '-=0.05')
+    },
+    { scope: root, dependencies: [open], revertOnUpdate: true },
+  )
+
+  if (!open || typeof document === 'undefined') return null
+
+  // Portal no body: evita corte por perspective/transform do PageEnter (fixed vira relativo ao ancestral)
+  return createPortal(
+    <div
+      ref={root}
+      className="fixed inset-0 z-[100] overflow-y-auto overscroll-contain"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <button
         type="button"
+        data-modal="backdrop"
         aria-label="Fechar"
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/65 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div
-        className={`relative z-10 flex max-h-[min(92dvh,92vh)] w-full flex-col rounded-t-3xl bg-[var(--surface)] shadow-2xl sm:rounded-3xl ${
-          wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'
-        }`}
-      >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--line)] px-5 pb-3 pt-5">
-          <h2 className="font-display text-xl font-bold text-[var(--ink)]">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-sm font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-2)]"
-          >
-            Fechar
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch]">
-          {children}
-        </div>
-        {footer ? (
-          <div className="shrink-0 border-t border-[var(--line)] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-            {footer}
+
+      <div className="relative flex min-h-full items-center justify-center p-4">
+        <div
+          data-modal="panel"
+          className={`relative w-full rounded-3xl border border-[var(--line)] bg-[var(--surface)] shadow-2xl ${
+            wide ? 'max-w-2xl' : 'max-w-lg'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
+            <h2 className="font-display text-xl font-bold text-[var(--ink)]">{title}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-sm font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-2)]"
+            >
+              Fechar
+            </button>
           </div>
-        ) : (
-          <div className="shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4" />
-        )}
+
+          <div className="px-5 py-4">{children}</div>
+
+          {footer ? (
+            <div className="border-t border-[var(--line)] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+              {footer}
+            </div>
+          ) : (
+            <div className="pb-[max(0.75rem,env(safe-area-inset-bottom))]" />
+          )}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
 export function EmptyState({ title, desc, action }: { title: string; desc: string; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)]/60 px-6 py-10 text-center">
+    <div
+      data-enter="block"
+      className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)]/60 px-6 py-10 text-center"
+    >
       <p className="font-display text-lg font-bold text-[var(--ink)]">{title}</p>
       <p className="mt-1 text-sm text-[var(--ink-muted)]">{desc}</p>
       {action && <div className="mt-4 flex justify-center">{action}</div>}

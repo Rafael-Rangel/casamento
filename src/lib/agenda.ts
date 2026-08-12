@@ -16,6 +16,7 @@ import {
 import { ptBR } from 'date-fns/locale'
 import type { Expense, FinanceState, OtherIncome, Project, SalarySource } from '../types/finance'
 import { isExpenseOccurrencePaid, expenseInstallmentParts } from './expensePayment'
+import { isOtherIncomeOccurrenceReceived } from './incomePayment'
 import { implementationIncome, monthlyYourShare } from './projectShare'
 
 export type AgendaKind =
@@ -36,7 +37,7 @@ export interface AgendaEvent {
   amount: number
   meta: string
   sourceId: string
-  /** Despesas: status explícito. Receitas: inferido por data no monthPlan. */
+  /** Despesas e receitas extras: status explícito. Demais receitas: inferido por data no monthPlan. */
   paid?: boolean
 }
 
@@ -174,8 +175,9 @@ function otherIncomeEvents(items: OtherIncome[], from: Date, to: Date): AgendaEv
         kind: 'other_income',
         label: o.name,
         amount: o.amount,
-        meta: 'Receita única',
+        meta: 'Receita extra · única',
         sourceId: o.id,
+        paid: isOtherIncomeOccurrenceReceived(o, o.date),
       })
       continue
     }
@@ -195,8 +197,9 @@ function otherIncomeEvents(items: OtherIncome[], from: Date, to: Date): AgendaEv
             kind: 'other_income',
             label: o.name,
             amount: o.amount,
-            meta: 'Receita recorrente',
+            meta: 'Receita extra · recorrente',
             sourceId: o.id,
+            paid: isOtherIncomeOccurrenceReceived(o, payDate),
           })
         }
       }

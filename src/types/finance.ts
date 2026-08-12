@@ -61,6 +61,13 @@ export interface OtherIncome {
   recurring: boolean
   endDate: string | null
   notes: string
+  /**
+   * unique (!recurring): se o valor já entrou na conta.
+   * recurring: use receivedOccurrences por data.
+   */
+  received: boolean
+  /** Ocorrências recebidas (chave = yyyy-MM-dd). */
+  receivedOccurrences?: Record<string, boolean>
 }
 
 export interface Category {
@@ -81,12 +88,47 @@ export interface WeddingFlexItem {
   tag: string
 }
 
+/** Como a demanda se espalha no tempo */
+export type DemandDuration = 'month' | 'range' | 'until_wedding' | 'permanent'
+/** total_split = divide o valor; per_month = mesmo valor em cada mês */
+export type DemandAmountMode = 'total_split' | 'per_month'
+/**
+ * plain = só o nome
+ * parts = Nome (k/N) · última no fim
+ * simple_last = Nome nos meses; Nome (última) no último
+ */
+export type DemandNaming = 'plain' | 'parts' | 'simple_last'
+
+export interface WeddingDemand {
+  id: string
+  name: string
+  amount: number
+  tag: string
+  duration: DemandDuration
+  /** YYYY-MM — mês único ou início */
+  startMonth: string
+  /** YYYY-MM — só para range */
+  endMonth?: string | null
+  amountMode: DemandAmountMode
+  sortOrder: number
+  /** false = fora do cronograma (ex.: mobília) */
+  active: boolean
+  naming?: DemandNaming
+  /** Para naming parts: índice da 1ª parcela (vestido = 2) */
+  partStart?: number
+  /** Para naming parts: total exibido (vestido = 7) */
+  partTotal?: number
+}
+
 export interface WeddingState {
   dateLabel: string
   /** Checkboxes do cronograma: "Jun::Salão de Festas" */
   checked: Record<string, boolean>
   alreadyPaid: WeddingPaidItem[]
+  /** Legado — espelho; fonte do cronograma é `demands` */
   flexItems: WeddingFlexItem[]
+  /** Demandas editáveis (fonte de verdade do cronograma) */
+  demands: WeddingDemand[]
   /** Totais fixos usados no resumo */
   totals: {
     salaRemaining: number
@@ -99,11 +141,15 @@ export interface WeddingState {
 }
 
 export interface CashBalance {
-  /** Dinheiro disponível agora (conta / caixa) */
+  /** Dinheiro disponível agora (resultado do ledger) */
   amount: number
   /** Data de referência do saldo (YYYY-MM-DD) */
   asOf: string
   notes: string
+  /** Saldo do extrato Nu na data openingAsOf (base do cálculo) */
+  openingAmount?: number
+  /** Último dia incluso no extrato (gastos desse dia já estão no opening) */
+  openingAsOf?: string
 }
 
 export interface FinanceState {

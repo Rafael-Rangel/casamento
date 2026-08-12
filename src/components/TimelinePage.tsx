@@ -24,7 +24,7 @@ const KIND_LABEL: Record<MonthEntry['kind'], string> = {
   salary: 'Salário',
   project_payment: 'Projeto',
   project_monthly: 'Mensalidade',
-  other_income: 'Receita',
+  other_income: 'Receita extra',
   expense: 'Gasto',
 }
 
@@ -33,7 +33,7 @@ export function TimelinePage() {
   const [expanded, setExpanded] = useState<string | null>(projections[0]?.key ?? null)
   const weddingSchedule = useMemo(() => {
     const budgets = weddingMonthBudgets(state)
-    return buildWeddingSchedule(budgets, state.wedding.flexItems).schedule
+    return buildWeddingSchedule(budgets, state.wedding).schedule
   }, [state])
   const weddingByMonth = useMemo(
     () => new Map(weddingSchedule.map((month) => [month.key, month])),

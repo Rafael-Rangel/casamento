@@ -10,10 +10,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: [
-        'favicon.svg',
+        'favicon-32.png',
+        'favicon-48.png',
         'apple-touch-icon.png',
         'icon-192.png',
         'icon-512.png',
+        'logo-ar.png',
       ],
       manifest: {
         name: 'Casamento - Plano Financeiro',
@@ -27,7 +29,7 @@ export default defineConfig({
         display: 'standalone',
         display_override: ['standalone', 'minimal-ui'],
         orientation: 'portrait-primary',
-        background_color: '#10151b',
+        background_color: '#f5e8e4',
         theme_color: '#10151b',
         categories: ['finance', 'lifestyle'],
         icons: [

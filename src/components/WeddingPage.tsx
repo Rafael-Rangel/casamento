@@ -1,27 +1,71 @@
 import { useMemo, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext'
 import { weddingMonthBudgets } from '../lib/projections'
-import { buildWeddingSchedule, schedulePendingByItem, scheduleTotals, TAG_COLORS, TAG_LABEL, activeFlexItems } from '../lib/wedding'
-import { fmt, uid } from '../lib/format'
-import type { WeddingFlexItem } from '../types/finance'
+import {
+  blankDemand,
+  buildWeddingSchedule,
+  demandsToFlexItems,
+  previewDemand,
+  schedulePendingByItem,
+  scheduleTotals,
+  TAG_COLORS,
+  TAG_LABEL,
+  WEDDING_MONTHS,
+} from '../lib/wedding'
+import { fmt } from '../lib/format'
+import type {
+  DemandAmountMode,
+  DemandDuration,
+  DemandNaming,
+  WeddingDemand,
+  WeddingPaidItem,
+} from '../types/finance'
 import { Button, Field, Input, Modal, Money, Select } from './ui'
 import { PageEnter } from './PageEnter'
 
 const TAG_OPTIONS = Object.keys(TAG_LABEL)
 
-function blankFlex(): WeddingFlexItem {
-  return { id: uid(), name: '', amount: 0, tag: 'casamento' }
+const DURATION_LABEL: Record<DemandDuration, string> = {
+  month: 'Só um mês',
+  range: 'Intervalo de meses',
+  until_wedding: 'Até a data do casamento',
+  permanent: 'Permanente (até remover)',
+}
+
+const AMOUNT_MODE_LABEL: Record<DemandAmountMode, string> = {
+  total_split: 'Total dividido entre os meses',
+  per_month: 'Mesmo valor em cada mês',
+}
+
+const MONTH_OPTIONS = WEDDING_MONTHS.map((m) => ({ value: m.key, label: m.label }))
+
+function durationHint(d: WeddingDemand): string {
+  if (d.duration === 'month') return d.startMonth
+  if (d.duration === 'range') return `${d.startMonth} → ${d.endMonth || d.startMonth}`
+  if (d.duration === 'until_wedding') return `${d.startMonth} → casamento`
+  return `${d.startMonth} → …`
 }
 
 export function WeddingPage() {
   const { state, toggleWeddingCheck, isWeddingChecked, updateWedding } = useFinance()
-  const [tab, setTab] = useState<'cronograma' | 'resumo'>('cronograma')
+  const [tab, setTab] = useState<'cronograma' | 'gerenciar' | 'resumo'>('cronograma')
   const [activeMonth, setActiveMonth] = useState(0)
   const [showDeficit, setShowDeficit] = useState(false)
   const [showPaid, setShowPaid] = useState(false)
-  const [flexOpen, setFlexOpen] = useState(false)
-  const [flexForm, setFlexForm] = useState<WeddingFlexItem>(blankFlex())
+  const [showInactive, setShowInactive] = useState(false)
+
+  const [demandOpen, setDemandOpen] = useState(false)
+  const [demandForm, setDemandForm] = useState<WeddingDemand>(blankDemand())
+  const [paidOpen, setPaidOpen] = useState(false)
+  const [paidForm, setPaidForm] = useState<WeddingPaidItem & { index: number }>({
+    name: '',
+    amount: 0,
+    index: -1,
+  })
+  const [dateDraft, setDateDraft] = useState(state.wedding.dateLabel)
+
+  const demands = state.wedding.demands || []
 
   const budgets = useMemo(() => weddingMonthBudgets(state), [state])
   const avgBudget =
@@ -29,8 +73,8 @@ export function WeddingPage() {
   const monthCount = budgets.length
 
   const { schedule, unpaid, totalRemaining, deferred } = useMemo(
-    () => buildWeddingSchedule(budgets, state.wedding.flexItems),
-    [budgets, state.wedding.flexItems],
+    () => buildWeddingSchedule(budgets, state.wedding),
+    [budgets, state.wedding],
   )
 
   const { pending: schedulePending } = useMemo(
@@ -43,6 +87,11 @@ export function WeddingPage() {
     [schedule, state.wedding.checked],
   )
 
+  const demandPreview = useMemo(
+    () => previewDemand(demandForm, state.wedding.dateLabel),
+    [demandForm, state.wedding.dateLabel],
+  )
+
   const totalSavings = budgets.reduce((s, b) => s + Math.max(0, b), 0)
   const m = schedule[activeMonth] || schedule[0]
   const monthTotal = m?.payments.reduce((s, p) => s + p.amount, 0) || 0
@@ -51,9 +100,7 @@ export function WeddingPage() {
       (s, p) => (isWeddingChecked(m.short, p.name) ? s + p.amount : s),
       0,
     ) || 0
-  /** Valor em destaque: cai a cada check */
   const stillToPay = monthTotal - paidTotal
-  /** Quanto falta ganhar a mais só para o que ainda não foi marcado */
   const needMoreForPending = Math.max(0, stillToPay - (m?.budget ?? 0))
   const accumulated = schedule.map((_, i) =>
     budgets.slice(0, i + 1).reduce((s, b) => s + Math.max(0, b), 0),
@@ -63,7 +110,6 @@ export function WeddingPage() {
     m?.payments.filter((p) => showPaid || !isWeddingChecked(m.short, p.name)) || []
   const hiddenPaidCount = (m?.payments.length || 0) - visiblePayments.length
 
-  /** Déficit do plano inteiro, mas só com o que ainda falta marcar em todos os meses */
   const stillNeedAcrossMonths = schedule.reduce((sum, month) => {
     const pending = month.payments
       .filter((p) => !isWeddingChecked(month.short, p.name))
@@ -72,23 +118,63 @@ export function WeddingPage() {
   }, 0)
 
   const alreadyPaidTotal = state.wedding.alreadyPaid.reduce((s, i) => s + i.amount, 0)
+  const activeDemands = demands.filter((d) => d.active).sort((a, b) => a.sortOrder - b.sortOrder)
+  const inactiveDemands = demands.filter((d) => !d.active).sort((a, b) => a.sortOrder - b.sortOrder)
 
-  const saveFlex = () => {
-    if (!flexForm.name.trim() || flexForm.amount <= 0) return
-    const items = state.wedding.flexItems
-    const exists = items.some((x) => x.id === flexForm.id)
+  const persistDemands = (next: WeddingDemand[]) => {
+    const normalized = next.map((d, i) => ({ ...d, sortOrder: i }))
     updateWedding({
-      flexItems: exists
-        ? items.map((x) => (x.id === flexForm.id ? flexForm : x))
-        : [...items, flexForm],
+      demands: normalized,
+      flexItems: demandsToFlexItems(normalized),
     })
-    setFlexOpen(false)
   }
 
-  const removeFlex = (id: string) => {
-    if (!confirm('Excluir este item do casamento?')) return
+  const saveDemand = () => {
+    if (!demandForm.name.trim() || !(demandForm.amount > 0)) return
+    if (demandForm.duration === 'range' && !demandForm.endMonth) {
+      demandForm.endMonth = demandForm.startMonth
+    }
+    const exists = demands.some((x) => x.id === demandForm.id)
+    const next = exists
+      ? demands.map((x) => (x.id === demandForm.id ? demandForm : x))
+      : [...demands, { ...demandForm, sortOrder: demands.length }]
+    persistDemands(next)
+    setDemandOpen(false)
+  }
+
+  const removeDemand = (id: string) => {
+    if (!confirm('Excluir esta demanda do casamento?')) return
+    persistDemands(demands.filter((x) => x.id !== id))
+  }
+
+  const moveDemand = (id: string, dir: -1 | 1) => {
+    const sorted = [...activeDemands]
+    const i = sorted.findIndex((d) => d.id === id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= sorted.length) return
+    ;[sorted[i], sorted[j]] = [sorted[j], sorted[i]]
+    persistDemands([...sorted, ...inactiveDemands])
+  }
+
+  const saveDate = () => {
+    const t = dateDraft.trim()
+    if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(t)) return
+    updateWedding({ dateLabel: t })
+  }
+
+  const savePaid = () => {
+    if (!paidForm.name.trim() || !(paidForm.amount > 0)) return
+    const list = [...state.wedding.alreadyPaid]
+    if (paidForm.index >= 0) list[paidForm.index] = { name: paidForm.name, amount: paidForm.amount }
+    else list.push({ name: paidForm.name, amount: paidForm.amount })
+    updateWedding({ alreadyPaid: list })
+    setPaidOpen(false)
+  }
+
+  const removePaid = (index: number) => {
+    if (!confirm('Remover este item do histórico?')) return
     updateWedding({
-      flexItems: state.wedding.flexItems.filter((x) => x.id !== id),
+      alreadyPaid: state.wedding.alreadyPaid.filter((_, i) => i !== index),
     })
   }
 
@@ -99,11 +185,11 @@ export function WeddingPage() {
           Casamento {state.wedding.dateLabel}
         </h1>
         <p className="mt-1 text-xs text-[var(--ink-muted)]">
-          Marque o que pagou · edite itens · tudo salva neste aparelho
+          Marque o que pagou · gerencie demandas · tudo recalcula sozinho
         </p>
       </header>
 
-      <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+      <div data-enter="hero" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <p className="mb-2 text-sm font-bold text-[var(--ink)]">Orçamento para o plano</p>
         <p className="text-xs text-[var(--ink-muted)]">
           Dinheiro disponível para cobrir o cronograma (receitas − vida/cartão). A “sobra
@@ -124,17 +210,17 @@ export function WeddingPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+        <div data-enter="chip" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
           <p className="text-xs text-[var(--ink-muted)]">Budget/mês</p>
           <p className="text-base font-bold text-[var(--positive)]">{fmt(avgBudget, true)}</p>
         </div>
-        <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
+        <div data-enter="chip" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 text-center">
           <p className="text-xs text-[var(--ink-muted)]">Total plano</p>
           <p className="text-base font-bold text-[var(--positive)]">{fmt(totalSavings, true)}</p>
         </div>
         <button
           type="button"
-          data-enter="block"
+          data-enter="chip"
           onClick={() => setShowDeficit(!showDeficit)}
           className={`rounded-2xl border p-3 text-center transition active:scale-95 ${
             stillNeedAcrossMonths === 0
@@ -164,7 +250,6 @@ export function WeddingPage() {
           <p className="font-bold text-amber-200">Quanto falta ganhar a mais</p>
           <p className="mt-1 text-sm text-amber-100/80">
             Soma dos meses em que o que ainda falta pagar (sem check) passa do orçamento.
-            Conforme você marca ✓, esse número cai.
           </p>
           <div className="mt-3 space-y-1 rounded-xl border border-amber-500/20 bg-[var(--surface-2)] p-3 text-sm">
             <div className="flex justify-between">
@@ -173,37 +258,18 @@ export function WeddingPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--ink-muted)]">Orçamento acumulado</span>
-              <span className="font-bold text-[var(--positive)]">
-                {fmt(totalSavings, true)}
-              </span>
+              <span className="font-bold text-[var(--positive)]">{fmt(totalSavings, true)}</span>
             </div>
             <div className="flex justify-between border-t border-amber-500/20 pt-1 font-bold">
               <span>Ainda precisa ganhar a mais</span>
-              <span
-                className={
-                  stillNeedAcrossMonths === 0 ? 'text-emerald-300' : 'text-amber-300'
-                }
-              >
+              <span className={stillNeedAcrossMonths === 0 ? 'text-emerald-300' : 'text-amber-300'}>
                 {fmt(stillNeedAcrossMonths, true)}
               </span>
             </div>
           </div>
-          {unpaid.length > 0 ? (
-            <div className="mt-3">
-              <p className="mb-1 text-xs font-bold text-amber-200">Ainda não encaixados:</p>
-              {unpaid.map((u) => (
-                <div
-                  key={u.name}
-                  className="flex justify-between py-0.5 text-xs text-amber-100/90"
-                >
-                  <span>{u.name}</span>
-                  <span className="font-bold">falta {fmt(u.remaining, true)}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
+          {unpaid.length === 0 && (
             <p className="mt-3 text-xs font-semibold text-emerald-300">
-              Tudo coberto com esse orçamento!
+              Todas as demandas ativas estão no cronograma.
             </p>
           )}
         </div>
@@ -213,14 +279,18 @@ export function WeddingPage() {
         {(
           [
             ['cronograma', 'Cronograma'],
-            ['resumo', 'Itens & resumo'],
+            ['gerenciar', 'Gerenciar'],
+            ['resumo', 'Resumo'],
           ] as const
         ).map(([id, label]) => (
           <button
             key={id}
             type="button"
             data-enter="chip"
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id)
+              if (id === 'gerenciar') setDateDraft(state.wedding.dateLabel)
+            }}
             className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition ${
               tab === id
                 ? 'bg-[var(--rose)] text-white shadow'
@@ -392,92 +462,216 @@ export function WeddingPage() {
                 style={{
                   width: `${
                     totalSavings > 0
-                      ? Math.min(
-                          ((accumulated[activeMonth] || 0) / totalSavings) * 100,
-                          100,
-                        )
+                      ? Math.min(((accumulated[activeMonth] || 0) / totalSavings) * 100, 100)
                       : 0
                   }%`,
                 }}
               />
             </div>
-            <div className="mt-1 flex justify-between text-xs text-[var(--ink-faint)]">
-              <span>Jul</span>
-              <span>
-                {totalSavings > 0
-                  ? Math.round(((accumulated[activeMonth] || 0) / totalSavings) * 100)
-                  : 0}
-                %
-              </span>
-              <span>Dez — {fmt(totalSavings, true)}</span>
+          </div>
+        </div>
+      )}
+
+      {tab === 'gerenciar' && (
+        <div className="space-y-3">
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+            <p className="mb-2 font-bold text-[var(--ink)]">Data do casamento</p>
+            <p className="mb-3 text-xs text-[var(--ink-muted)]">
+              Usada em demandas “até a data do casamento” (DD/MM/AAAA).
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={dateDraft}
+                onChange={(e) => setDateDraft(e.target.value)}
+                placeholder="12/12/2026"
+              />
+              <Button onClick={saveDate}>Salvar</Button>
             </div>
+          </div>
+
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <p className="font-bold text-[var(--ink)]">Demandas</p>
+                <p className="text-xs text-[var(--ink-muted)]">
+                  Crie, edite, reordene e defina período e valor. O cronograma atualiza na hora.
+                </p>
+              </div>
+              <Button
+                className="shrink-0"
+                onClick={() => {
+                  setDemandForm(blankDemand())
+                  setDemandOpen(true)
+                }}
+              >
+                <Plus size={14} /> Nova
+              </Button>
+            </div>
+
+            {activeDemands.length === 0 ? (
+              <p className="text-sm text-[var(--ink-muted)]">Nenhuma demanda ativa.</p>
+            ) : (
+              <ul className="space-y-2">
+                {activeDemands.map((item, idx) => {
+                  const prev = previewDemand(item, state.wedding.dateLabel)
+                  return (
+                    <li
+                      key={item.id}
+                      data-enter="item"
+                      className="rounded-xl bg-[var(--surface-2)] px-3 py-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                TAG_COLORS[item.tag] || 'bg-white/10'
+                              }`}
+                            >
+                              {TAG_LABEL[item.tag] || item.tag}
+                            </span>
+                            <span className="truncate text-sm font-semibold">{item.name}</span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                            {DURATION_LABEL[item.duration]} · {durationHint(item)}
+                          </p>
+                          <p className="text-xs text-[var(--ink-muted)]">
+                            {AMOUNT_MODE_LABEL[item.amountMode]} · {prev.months.length} mês(es) ·
+                            total {fmt(prev.total, true)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-1">
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              disabled={idx === 0}
+                              onClick={() => moveDemand(item.id, -1)}
+                            >
+                              <ChevronUp size={14} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              disabled={idx === activeDemands.length - 1}
+                              onClick={() => moveDemand(item.id, 1)}
+                            >
+                              <ChevronDown size={14} />
+                            </Button>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setDemandForm({ ...item })
+                                setDemandOpen(true)
+                              }}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button variant="danger" onClick={() => removeDemand(item.id)}>
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+
+            {inactiveDemands.length > 0 && (
+              <div className="mt-4 border-t border-[var(--line)] pt-3">
+                <button
+                  type="button"
+                  className="mb-2 text-xs font-semibold text-[var(--ink-muted)]"
+                  onClick={() => setShowInactive((v) => !v)}
+                >
+                  {showInactive ? 'Ocultar' : 'Mostrar'} inativas ({inactiveDemands.length})
+                </button>
+                {showInactive &&
+                  inactiveDemands.map((item) => (
+                    <div
+                      key={item.id}
+                      className="mb-2 flex items-center justify-between rounded-xl border border-dashed border-[var(--line)] px-3 py-2 text-sm"
+                    >
+                      <span className="text-[var(--ink-muted)]">{item.name}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            persistDemands(
+                              demands.map((d) =>
+                                d.id === item.id ? { ...d, active: true } : d,
+                              ),
+                            )
+                          }}
+                        >
+                          Ativar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setDemandForm({ ...item })
+                            setDemandOpen(true)
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="font-bold text-[var(--ink)]">Já pago (histórico)</p>
+                <p className="text-xs text-[var(--ink-muted)]">Fora do cronograma mensal.</p>
+              </div>
+              <Button
+                onClick={() => {
+                  setPaidForm({ name: '', amount: 0, index: -1 })
+                  setPaidOpen(true)
+                }}
+              >
+                <Plus size={14} /> Item
+              </Button>
+            </div>
+            {state.wedding.alreadyPaid.map((item, index) => (
+              <div
+                key={`${item.name}-${index}`}
+                className="flex items-center justify-between gap-2 border-b border-[var(--surface-2)] py-2 text-sm last:border-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[var(--ink-muted)]">{item.name}</p>
+                  <span className="font-semibold text-[var(--positive)]">
+                    {fmt(item.amount, true)}
+                  </span>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setPaidForm({ ...item, index })
+                      setPaidOpen(true)
+                    }}
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="danger" onClick={() => removePaid(index)}>
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {tab === 'resumo' && (
         <div className="space-y-3">
-          <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div>
-                <p className="font-bold text-[var(--ink)]">Itens flexíveis</p>
-                <p className="text-xs text-[var(--ink-muted)]">
-                  Adicione, edite ou exclua (alianças, banda, lua de mel…)
-                </p>
-              </div>
-              <Button
-                className="shrink-0"
-                onClick={() => {
-                  setFlexForm(blankFlex())
-                  setFlexOpen(true)
-                }}
-              >
-                <Plus size={14} /> Novo
-              </Button>
-            </div>
-            {state.wedding.flexItems.length === 0 ? (
-              <p className="text-sm text-[var(--ink-muted)]">Nenhum item flexível.</p>
-            ) : (
-              <ul className="space-y-2">
-                {activeFlexItems(state.wedding.flexItems).map((item) => (
-                  <li
-                    key={item.id}
-                    data-enter="item"
-                    className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            TAG_COLORS[item.tag] || 'bg-white/10'
-                          }`}
-                        >
-                          {TAG_LABEL[item.tag] || item.tag}
-                        </span>
-                        <span className="truncate text-sm font-semibold">{item.name}</span>
-                      </div>
-                      <Money value={item.amount} className="text-sm" />
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setFlexForm({ ...item })
-                          setFlexOpen(true)
-                        }}
-                      >
-                        <Pencil size={14} /> Editar
-                      </Button>
-                      <Button variant="danger" onClick={() => removeFlex(item.id)}>
-                        <Trash2 size={14} /> Excluir
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
           <div data-enter="block" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="mb-3 font-bold text-[var(--ink)]">Já pago (histórico)</p>
             {state.wedding.alreadyPaid.map((item) => (
@@ -498,16 +692,18 @@ export function WeddingPage() {
             <p className="mb-3 font-bold text-[var(--ink)]">Cronograma ainda a pagar</p>
             {pendingByItem.length === 0 ? (
               <p className="text-sm text-[var(--ink-muted)]">Tudo marcado como pago no cronograma.</p>
-            ) : pendingByItem.map((item) => (
-              <div
-                key={item.name}
-                data-enter="item"
-                className="flex justify-between border-b border-[var(--surface-2)] py-1 text-sm last:border-0"
-              >
-                <span className="text-[var(--ink-muted)]">{item.name}</span>
-                <span className="font-semibold">{fmt(item.amount, true)}</span>
-              </div>
-            ))}
+            ) : (
+              pendingByItem.map((item) => (
+                <div
+                  key={item.name}
+                  data-enter="item"
+                  className="flex justify-between border-b border-[var(--surface-2)] py-1 text-sm last:border-0"
+                >
+                  <span className="text-[var(--ink-muted)]">{item.name}</span>
+                  <span className="font-semibold">{fmt(item.amount, true)}</span>
+                </div>
+              ))
+            )}
             <div className="mt-2 flex justify-between border-t border-[var(--line)] pt-2 text-sm font-bold">
               <span>Total do cronograma (pendente)</span>
               <span>{fmt(schedulePending, true)}</span>
@@ -516,10 +712,7 @@ export function WeddingPage() {
 
           {deferred.length > 0 && (
             <div data-enter="block" className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-4">
-              <p className="mb-2 font-bold text-[var(--ink)]">Para depois do casamento</p>
-              <p className="mb-3 text-xs text-[var(--ink-muted)]">
-                Fora do cronograma Jul–Dez — planeja quando quiser.
-              </p>
+              <p className="mb-2 font-bold text-[var(--ink)]">Inativas / para depois</p>
               {deferred.map((item) => (
                 <div key={item.id} data-enter="item" className="flex justify-between py-1 text-sm">
                   <span className="text-[var(--ink-muted)]">{item.name}</span>
@@ -532,43 +725,39 @@ export function WeddingPage() {
       )}
 
       <Modal
-        open={flexOpen}
-        title={
-          state.wedding.flexItems.some((x) => x.id === flexForm.id)
-            ? 'Editar item'
-            : 'Novo item do casamento'
-        }
-        onClose={() => setFlexOpen(false)}
+        open={demandOpen}
+        title={demands.some((x) => x.id === demandForm.id) ? 'Editar demanda' : 'Nova demanda'}
+        onClose={() => setDemandOpen(false)}
         footer={
-          <Button className="w-full" onClick={saveFlex}>
-            Salvar item
+          <Button className="w-full" onClick={saveDemand}>
+            Salvar demanda
           </Button>
         }
       >
         <div className="space-y-3">
           <Field label="Nome">
             <Input
-              value={flexForm.name}
-              onChange={(e) => setFlexForm({ ...flexForm, name: e.target.value })}
+              value={demandForm.name}
+              onChange={(e) => setDemandForm({ ...demandForm, name: e.target.value })}
               placeholder="Alianças de Ouro"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Valor">
+            <Field label="Valor (R$)">
               <Input
                 type="number"
                 step="0.01"
                 min={0}
-                value={flexForm.amount || ''}
+                value={demandForm.amount || ''}
                 onChange={(e) =>
-                  setFlexForm({ ...flexForm, amount: Number(e.target.value) || 0 })
+                  setDemandForm({ ...demandForm, amount: Number(e.target.value) || 0 })
                 }
               />
             </Field>
             <Field label="Categoria">
               <Select
-                value={flexForm.tag}
-                onChange={(e) => setFlexForm({ ...flexForm, tag: e.target.value })}
+                value={demandForm.tag}
+                onChange={(e) => setDemandForm({ ...demandForm, tag: e.target.value })}
               >
                 {TAG_OPTIONS.map((tag) => (
                   <option key={tag} value={tag}>
@@ -578,6 +767,155 @@ export function WeddingPage() {
               </Select>
             </Field>
           </div>
+          <Field label="Período">
+            <Select
+              value={demandForm.duration}
+              onChange={(e) =>
+                setDemandForm({
+                  ...demandForm,
+                  duration: e.target.value as DemandDuration,
+                  naming:
+                    e.target.value === 'month'
+                      ? 'plain'
+                      : demandForm.naming === 'plain'
+                        ? 'parts'
+                        : demandForm.naming,
+                })
+              }
+            >
+              {(Object.keys(DURATION_LABEL) as DemandDuration[]).map((k) => (
+                <option key={k} value={k}>
+                  {DURATION_LABEL[k]}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={demandForm.duration === 'month' ? 'Mês' : 'Início'}>
+              <Select
+                value={demandForm.startMonth}
+                onChange={(e) => setDemandForm({ ...demandForm, startMonth: e.target.value })}
+              >
+                {MONTH_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {demandForm.duration === 'range' && (
+              <Field label="Fim">
+                <Select
+                  value={demandForm.endMonth || demandForm.startMonth}
+                  onChange={(e) => setDemandForm({ ...demandForm, endMonth: e.target.value })}
+                >
+                  {MONTH_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+          </div>
+          {demandForm.duration !== 'month' && (
+            <Field label="Como aplicar o valor">
+              <Select
+                value={demandForm.amountMode}
+                onChange={(e) =>
+                  setDemandForm({
+                    ...demandForm,
+                    amountMode: e.target.value as DemandAmountMode,
+                  })
+                }
+              >
+                {(Object.keys(AMOUNT_MODE_LABEL) as DemandAmountMode[]).map((k) => (
+                  <option key={k} value={k}>
+                    {AMOUNT_MODE_LABEL[k]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+          {demandForm.duration !== 'month' && (
+            <Field label="Nome nas parcelas">
+              <Select
+                value={demandForm.naming || 'parts'}
+                onChange={(e) =>
+                  setDemandForm({
+                    ...demandForm,
+                    naming: e.target.value as DemandNaming,
+                  })
+                }
+              >
+                <option value="parts">Nome (1/N) …</option>
+                <option value="simple_last">Nome · última no fim</option>
+                <option value="plain">Sempre o mesmo nome</option>
+              </Select>
+            </Field>
+          )}
+          <label className="flex items-center gap-2 text-sm text-[var(--ink)]">
+            <input
+              type="checkbox"
+              checked={demandForm.active}
+              onChange={(e) => setDemandForm({ ...demandForm, active: e.target.checked })}
+            />
+            Ativa no cronograma
+          </label>
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3 text-xs text-[var(--ink-muted)]">
+            <p className="font-semibold text-[var(--ink)]">Preview</p>
+            <p className="mt-1">
+              {demandPreview.months.length} mês(es) · total {fmt(demandPreview.total, true)}
+              {demandPreview.months.length > 0 && (
+                <>
+                  {' '}
+                  · ~{fmt(demandPreview.amounts[0] || 0, true)}
+                  {demandForm.amountMode === 'per_month' || demandPreview.months.length === 1
+                    ? '/mês'
+                    : ' no 1º mês'}
+                </>
+              )}
+            </p>
+            {demandPreview.labels.slice(0, 4).map((l, i) => (
+              <p key={l + i}>
+                {demandPreview.months[i]}: {l} — {fmt(demandPreview.amounts[i] || 0, true)}
+              </p>
+            ))}
+            {demandPreview.labels.length > 4 && (
+              <p>… +{demandPreview.labels.length - 4} meses</p>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={paidOpen}
+        title={paidForm.index >= 0 ? 'Editar histórico' : 'Novo no histórico'}
+        onClose={() => setPaidOpen(false)}
+        footer={
+          <Button className="w-full" onClick={savePaid}>
+            Salvar
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Nome">
+            <Input
+              value={paidForm.name}
+              onChange={(e) => setPaidForm({ ...paidForm, name: e.target.value })}
+            />
+          </Field>
+          <Field label="Valor">
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              value={paidForm.amount || ''}
+              onChange={(e) =>
+                setPaidForm({ ...paidForm, amount: Number(e.target.value) || 0 })
+              }
+            />
+          </Field>
         </div>
       </Modal>
     </PageEnter>
