@@ -94,8 +94,23 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, [cloudStatus])
 
   const applyRemoteState = useCallback((remote: FinanceState) => {
-    skipNextCloudSaveRef.current = true
-    setState(hydrateState(remote))
+    const hydrated = hydrateState(remote)
+    const remoteSeed = Number(remote.seedVersion) || 0
+    const nextSeed = Number(hydrated.seedVersion) || 0
+    const remoteWedding = JSON.stringify({
+      demands: remote.wedding?.demands,
+      alreadyPaid: remote.wedding?.alreadyPaid,
+      totals: remote.wedding?.totals,
+    })
+    const nextWedding = JSON.stringify({
+      demands: hydrated.wedding?.demands,
+      alreadyPaid: hydrated.wedding?.alreadyPaid,
+      totals: hydrated.wedding?.totals,
+    })
+    // Regrava na nuvem quando a hidratação migrou seed ou recalculou o casamento.
+    skipNextCloudSaveRef.current =
+      nextSeed <= remoteSeed && remoteWedding === nextWedding
+    setState(hydrated)
   }, [])
 
   const pushCloudState = useCallback(async (nextState: FinanceState) => {

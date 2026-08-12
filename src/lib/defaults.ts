@@ -79,7 +79,9 @@ export const DANIELE_EXTRA_AND_SALARY_NOTE_VERSION = 27
 export const FRESH_START_AUG12_VERSION = 28
 /** Salão total 24.500 − 6.194 pagos = 18.306 · Open Bar 2.100 */
 export const SALAO_OPENBAR_RECALC_VERSION = 29
-export const SEED_VERSION = SALAO_OPENBAR_RECALC_VERSION
+/** Força de novo: aparelhos/nuvem com seed 29 ainda no salão antigo (1.557). */
+export const SALAO_OPENBAR_FORCE_VERSION = 30
+export const SEED_VERSION = SALAO_OPENBAR_FORCE_VERSION
 
 export const POWER_VOLTS_PROJECT_ID = 'seed-website-power-volts'
 

@@ -12,7 +12,7 @@ import {
   JULY22_FOOD_SPEND_VERSION,
   DANIELE_EXTRA_AND_SALARY_NOTE_VERSION,
   FRESH_START_AUG12_VERSION,
-  SALAO_OPENBAR_RECALC_VERSION,
+  SALAO_OPENBAR_FORCE_VERSION,
   SALARY_SEED_VERSION,
   seedCashBalance,
   seedJuly20MonicaNoivas,
@@ -41,6 +41,7 @@ import {
   JUNE_PAID_CHECKS,
   JULY_ALREADY_PAID_CHECKS,
   JULY_PAID_EXCEPT_DIA_NOIVA,
+  OPEN_BAR_AMOUNT,
   SALAO_ALREADY_PAID,
   SALAO_REMAINING,
   VESTIDO_PM,
@@ -243,12 +244,53 @@ function applyJulyPaidExceptDiaNoiva(
   }
 }
 
+const OLD_SALAO_IDS = new Set([
+  'salao-mensal',
+  'salao-ultima',
+  'salao-complemento',
+])
+
+/** True se o salão/open bar ainda está no formato/valor antigo. */
+function weddingHasStaleSalaoOpenbar(wedding: WeddingState): boolean {
+  const demands = wedding.demands || []
+  if (demands.some((d) => OLD_SALAO_IDS.has(d.id))) return true
+
+  const salao = demands.find((d) => d.id === 'salao')
+  if (
+    !salao ||
+    Math.abs(salao.amount - SALAO_REMAINING) > 0.01 ||
+    salao.startMonth !== '2026-08' ||
+    salao.endMonth !== '2026-12' ||
+    salao.amountMode !== 'total_split'
+  ) {
+    return true
+  }
+
+  const openbarTotal = demands
+    .filter((d) => d.id === 'openbar' || d.id.startsWith('openbar__'))
+    .reduce((s, d) => s + (d.amount || 0), 0)
+  if (Math.abs(openbarTotal - OPEN_BAR_AMOUNT) > 0.01) return true
+
+  const paidSalao = (wedding.alreadyPaid || [])
+    .filter((i) => /sal[aã]o/i.test(i.name))
+    .reduce((s, i) => s + (i.amount || 0), 0)
+  if (Math.abs(paidSalao - SALAO_ALREADY_PAID) > 0.01) return true
+
+  if (Math.abs((wedding.totals?.salaRemaining ?? 0) - SALAO_REMAINING) > 0.01) {
+    return true
+  }
+
+  return false
+}
+
 /** Recalcula Salão (24.500 − 6.194) e Open Bar (2.100). */
 function applySalaoOpenbarRecalc(
   wedding: WeddingState,
   seedVersion: number | undefined,
 ): WeddingState {
-  if (seedVersion !== undefined && seedVersion >= SALAO_OPENBAR_RECALC_VERSION) {
+  const seedOk =
+    seedVersion !== undefined && seedVersion >= SALAO_OPENBAR_FORCE_VERSION
+  if (seedOk && !weddingHasStaleSalaoOpenbar(wedding)) {
     return wedding
   }
 
@@ -273,6 +315,7 @@ function applySalaoOpenbarRecalc(
     if (defaultIds.has(d.id)) return false
     const root = d.id.split('__')[0]
     if (knownFlexRoots.has(root)) return false
+    if (OLD_SALAO_IDS.has(root)) return false
     if (defaultIds.has(root)) return false
     return true
   })
