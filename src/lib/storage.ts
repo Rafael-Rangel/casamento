@@ -12,6 +12,7 @@ import {
   JULY22_FOOD_SPEND_VERSION,
   DANIELE_EXTRA_AND_SALARY_NOTE_VERSION,
   FRESH_START_AUG12_VERSION,
+  SALAO_OPENBAR_RECALC_VERSION,
   SALARY_SEED_VERSION,
   seedCashBalance,
   seedJuly20MonicaNoivas,
@@ -40,6 +41,8 @@ import {
   JUNE_PAID_CHECKS,
   JULY_ALREADY_PAID_CHECKS,
   JULY_PAID_EXCEPT_DIA_NOIVA,
+  SALAO_ALREADY_PAID,
+  SALAO_REMAINING,
   VESTIDO_PM,
 } from './wedding'
 import type {
@@ -214,11 +217,15 @@ function applyJulyPaidExceptDiaNoiva(
         delete checked[key]
         continue
       }
+      // Salão de julho não entra mais no cronograma (já nos R$ 6.194)
+      if (/sal[aã]o/i.test(p.name)) {
+        delete checked[key]
+        continue
+      }
       checked[key] = true
     }
   }
 
-  // Atualiza demanda Dia da Noiva para total 2358 (393 × 6)
   const nextDemands = demands.map((d) =>
     d.id === 'dia-noiva' ? { ...d, amount: DIA_NOIVA_TOTAL } : d,
   )
@@ -232,6 +239,73 @@ function applyJulyPaidExceptDiaNoiva(
     totals: {
       ...withDemands.totals,
       ...base.totals,
+    },
+  }
+}
+
+/** Recalcula Salão (24.500 − 6.194) e Open Bar (2.100). */
+function applySalaoOpenbarRecalc(
+  wedding: WeddingState,
+  seedVersion: number | undefined,
+): WeddingState {
+  if (seedVersion !== undefined && seedVersion >= SALAO_OPENBAR_RECALC_VERSION) {
+    return wedding
+  }
+
+  const defaults = createDefaultDemands()
+  const defaultIds = new Set(defaults.map((d) => d.id))
+  const knownFlexRoots = new Set([
+    'obra-mat',
+    'aliancas',
+    'banda',
+    'love',
+    'openbar',
+    'terno',
+    'buque',
+    'mobilia',
+    'salao',
+    'salao-mensal',
+    'salao-ultima',
+    'salao-complemento',
+  ])
+
+  const custom = (wedding.demands || []).filter((d) => {
+    if (defaultIds.has(d.id)) return false
+    const root = d.id.split('__')[0]
+    if (knownFlexRoots.has(root)) return false
+    if (defaultIds.has(root)) return false
+    return true
+  })
+
+  let sortOrder = defaults.reduce((m, d) => Math.max(m, d.sortOrder), 0) + 1
+  const demands = [
+    ...defaults,
+    ...custom.map((d) => ({ ...d, sortOrder: sortOrder++ })),
+  ]
+
+  const alreadyPaid = [
+    { name: 'Entrada / parcial Salão (já pago)', amount: SALAO_ALREADY_PAID },
+    ...(wedding.alreadyPaid || []).filter((i) => !/sal[aã]o/i.test(i.name)),
+  ]
+
+  const checked = { ...(wedding.checked || {}) }
+  for (const key of Object.keys(checked)) {
+    if (/::.*sal[aã]o/i.test(key)) delete checked[key]
+  }
+
+  return {
+    ...wedding,
+    demands,
+    flexItems: demandsToFlexItems(demands),
+    alreadyPaid,
+    checked: {
+      ...JUNE_PAID_CHECKS,
+      ...JULY_PAID_EXCEPT_DIA_NOIVA,
+      ...checked,
+    },
+    totals: {
+      ...wedding.totals,
+      salaRemaining: SALAO_REMAINING,
     },
   }
 }
@@ -680,11 +754,14 @@ export function hydrateState(parsed: Partial<FinanceState> | null | undefined): 
     parsed.seedVersion,
   )
 
-  const wedding = applyJulyPaidExceptDiaNoiva(
-    applyWeddingDemandsSeed(
-      applyNoivaParcelas(
-        applyVestidoAndJuly21Wedding(
-          applyWeddingJuneSeed(parsed.wedding, parsed.seedVersion),
+  const wedding = applySalaoOpenbarRecalc(
+    applyJulyPaidExceptDiaNoiva(
+      applyWeddingDemandsSeed(
+        applyNoivaParcelas(
+          applyVestidoAndJuly21Wedding(
+            applyWeddingJuneSeed(parsed.wedding, parsed.seedVersion),
+            parsed.seedVersion,
+          ),
           parsed.seedVersion,
         ),
         parsed.seedVersion,

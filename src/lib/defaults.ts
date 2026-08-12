@@ -77,7 +77,9 @@ export const DANIELE_EXTRA_AND_SALARY_NOTE_VERSION = 27
  * caixa R$ 4.882,46 · zera histórico de despesas · Mia Flow + Powervolt atualizados.
  */
 export const FRESH_START_AUG12_VERSION = 28
-export const SEED_VERSION = FRESH_START_AUG12_VERSION
+/** Salão total 24.500 − 6.194 pagos = 18.306 · Open Bar 2.100 */
+export const SALAO_OPENBAR_RECALC_VERSION = 29
+export const SEED_VERSION = SALAO_OPENBAR_RECALC_VERSION
 
 export const POWER_VOLTS_PROJECT_ID = 'seed-website-power-volts'
 

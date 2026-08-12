@@ -15,10 +15,16 @@ export const WEDDING_MONTHS = [
   { key: '2026-12', label: 'Dezembro 2026', short: 'Dez', emoji: '💒' },
 ] as const
 
-export const SALAO_PM = 1557
-export const SALAO_LAST = 1558
+export const SALAO_TOTAL = 24500
+export const SALAO_ALREADY_PAID = 6194
+/** Ainda a pagar do salão (Ago–Dez) */
+export const SALAO_REMAINING = SALAO_TOTAL - SALAO_ALREADY_PAID
+export const SALAO_PM = 3661.2
+export const SALAO_LAST = 3661.2
+/** Legado — julho já quitado no histórico */
 export const SALAO_JUNE_PAID = 500
-export const SALAO_JUNE_REST = SALAO_PM - SALAO_JUNE_PAID
+export const SALAO_JUNE_REST = 1057
+export const OPEN_BAR_AMOUNT = 2100
 export const VESTIDO_PM = 333.33
 export const VESTIDO_LAST = 333.33
 export const DIA_NOIVA_TOTAL = 2358
@@ -32,7 +38,7 @@ export const DEFAULT_FLEX: WeddingFlexItem[] = [
   { id: 'aliancas', name: 'Alianças de Ouro', amount: 2500, tag: 'casamento' },
   { id: 'banda', name: 'Banda', amount: 600, tag: 'casamento' },
   { id: 'love', name: 'Love – Decoração', amount: 150, tag: 'casamento' },
-  { id: 'openbar', name: 'Open Bar', amount: 1200, tag: 'casamento' },
+  { id: 'openbar', name: 'Open Bar', amount: OPEN_BAR_AMOUNT, tag: 'casamento' },
   { id: 'terno', name: 'Terno do Noivo', amount: 1000, tag: 'casamento' },
   { id: 'buque', name: 'Buquê da Noiva', amount: 250, tag: 'noiva' },
   { id: LUA_MEL_ID, name: 'Lua de Mel', amount: LUA_MEL_TOTAL, tag: 'luademel' },
@@ -79,13 +85,11 @@ export const JULY_ALREADY_PAID_CHECKS: Record<string, boolean> = {
 }
 
 /**
- * Julho quase todo quitado — só Dia da Noiva (~R$ 393) ficou pendente.
- * Chaves extras são preenchidas na migração FRESH_START a partir do cronograma.
+ * Julho quase todo quitado — só Dia da Noiva (R$ 393) ficou pendente.
+ * Salão de julho já está dentro dos R$ 6.194 pagos (fora do cronograma Ago–Dez).
  */
 export const JULY_PAID_EXCEPT_DIA_NOIVA: Record<string, boolean> = {
   ...JULY_ALREADY_PAID_CHECKS,
-  'Jul::Salão de Festas': true,
-  'Jul::Salão (complemento)': true,
   'Jul::Fotógrafo – 1ª parcela': true,
 }
 
@@ -332,47 +336,24 @@ export function createDefaultDemands(): WeddingDemand[] {
   const next = () => order++
   const jul = '2026-07'
   const ago = '2026-08'
-  const nov = '2026-11'
   const dez = '2026-12'
   const dateLabel = '12/12/2026'
 
   const fixed: WeddingDemand[] = [
     {
-      id: 'salao-mensal',
+      id: 'salao',
       name: 'Salão de Festas',
-      amount: SALAO_PM,
+      amount: SALAO_REMAINING,
       tag: 'salão',
       duration: 'range',
-      startMonth: jul,
-      endMonth: nov,
-      amountMode: 'per_month',
+      startMonth: ago,
+      endMonth: dez,
+      amountMode: 'total_split',
       sortOrder: next(),
       active: true,
-      naming: 'plain',
-    },
-    {
-      id: 'salao-ultima',
-      name: 'Salão (última parcela)',
-      amount: SALAO_LAST,
-      tag: 'salão',
-      duration: 'month',
-      startMonth: dez,
-      amountMode: 'per_month',
-      sortOrder: next(),
-      active: true,
-      naming: 'plain',
-    },
-    {
-      id: 'salao-complemento',
-      name: 'Salão (complemento)',
-      amount: SALAO_JUNE_REST,
-      tag: 'salão',
-      duration: 'month',
-      startMonth: jul,
-      amountMode: 'per_month',
-      sortOrder: next(),
-      active: true,
-      naming: 'plain',
+      naming: 'parts',
+      partStart: 1,
+      partTotal: 5,
     },
     {
       id: 'vestido',
@@ -470,7 +451,7 @@ export function createDefaultDemands(): WeddingDemand[] {
     { id: 'aliancas', name: 'Alianças de Ouro', amount: 2500, tag: 'casamento' },
     { id: 'banda', name: 'Banda', amount: 600, tag: 'casamento' },
     { id: 'love', name: 'Love – Decoração', amount: 150, tag: 'casamento' },
-    { id: 'openbar', name: 'Open Bar', amount: 1200, tag: 'casamento' },
+    { id: 'openbar', name: 'Open Bar', amount: OPEN_BAR_AMOUNT, tag: 'casamento' },
     { id: 'terno', name: 'Terno do Noivo', amount: 1000, tag: 'casamento' },
     { id: 'buque', name: 'Buquê da Noiva', amount: 250, tag: 'noiva' },
   ]
@@ -527,26 +508,23 @@ export function createWeddingState(): WeddingState {
       ...JULY_PAID_EXCEPT_DIA_NOIVA,
     },
     alreadyPaid: [
-      { name: 'Entrada Salão', amount: 2800 },
+      { name: 'Entrada / parcial Salão (já pago)', amount: SALAO_ALREADY_PAID },
       { name: 'Obra – banheiro (parcial)', amount: 400 },
       { name: 'Dia da Noiva (junho)', amount: 400 },
       { name: 'Brownies / Lembranças', amount: 550 },
       { name: 'Materiais obra', amount: 2244 },
-      { name: 'Salão junho (parcial)', amount: SALAO_JUNE_PAID },
       { name: 'Vestido (1/7) · Tavares Noiva', amount: VESTIDO_PM },
       { name: 'Obra banheiro (1ª parcela)', amount: 200 },
       { name: 'Presentes Padrinhos', amount: 440 },
       { name: 'Presentes Damonsellies', amount: 111 },
       { name: 'Vestido (2/7 · julho) · Tavares Noiva', amount: VESTIDO_PM },
       { name: 'Obra banheiro (restante · julho)', amount: 600 },
-      { name: 'Salão de Festas (julho)', amount: SALAO_PM },
-      { name: 'Salão (complemento · julho)', amount: SALAO_JUNE_REST },
       { name: 'Fotógrafo – 1ª parcela (julho)', amount: 1700 },
     ],
     flexItems: demandsToFlexItems(demands.filter((d) => d.active || DEFERRED_FLEX_IDS.has(d.id))),
     demands,
     totals: {
-      salaRemaining: 10400 - SALAO_PM - SALAO_JUNE_REST,
+      salaRemaining: SALAO_REMAINING,
       vestidoTotal: Math.round(VESTIDO_PM * 5 * 100) / 100,
       diaNoivaRemaining: DIA_NOIVA_TOTAL,
       fotografo: 1700,
