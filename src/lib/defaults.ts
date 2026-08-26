@@ -81,7 +81,9 @@ export const FRESH_START_AUG12_VERSION = 28
 export const SALAO_OPENBAR_RECALC_VERSION = 29
 /** Força de novo: aparelhos/nuvem com seed 29 ainda no salão antigo (1.557). */
 export const SALAO_OPENBAR_FORCE_VERSION = 30
-export const SEED_VERSION = SALAO_OPENBAR_FORCE_VERSION
+/** Replaneja meses: fixos mensais + Open Bar 2.280 + obra perto do casamento. */
+export const WEDDING_REPLAN_AUG26_VERSION = 31
+export const SEED_VERSION = WEDDING_REPLAN_AUG26_VERSION
 
 export const POWER_VOLTS_PROJECT_ID = 'seed-website-power-volts'
 

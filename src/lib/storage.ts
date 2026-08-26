@@ -13,6 +13,7 @@ import {
   DANIELE_EXTRA_AND_SALARY_NOTE_VERSION,
   FRESH_START_AUG12_VERSION,
   SALAO_OPENBAR_FORCE_VERSION,
+  WEDDING_REPLAN_AUG26_VERSION,
   SALARY_SEED_VERSION,
   seedCashBalance,
   seedJuly20MonicaNoivas,
@@ -41,7 +42,9 @@ import {
   JUNE_PAID_CHECKS,
   JULY_ALREADY_PAID_CHECKS,
   JULY_PAID_EXCEPT_DIA_NOIVA,
+  FOTO_REMAINING_TOTAL,
   OPEN_BAR_AMOUNT,
+  PRE_WEDDING_AMOUNT,
   SALAO_ALREADY_PAID,
   SALAO_REMAINING,
   VESTIDO_PM,
@@ -349,6 +352,105 @@ function applySalaoOpenbarRecalc(
     totals: {
       ...wedding.totals,
       salaRemaining: SALAO_REMAINING,
+    },
+  }
+}
+
+const REPLAN_KNOWN_ROOTS = new Set([
+  'salao',
+  'salao-mensal',
+  'salao-ultima',
+  'salao-complemento',
+  'vestido',
+  'dia-noiva',
+  'obra-restante',
+  'foto',
+  'foto-1',
+  'foto-2',
+  'pre-wedding',
+  'lua',
+  'obra-mat',
+  'aliancas',
+  'banda',
+  'love',
+  'openbar',
+  'terno',
+  'buque',
+  'mobilia',
+])
+
+function weddingNeedsReplanAug26(wedding: WeddingState): boolean {
+  const demands = wedding.demands || []
+  const foto = demands.find((d) => d.id === 'foto')
+  if (!foto || Math.abs(foto.amount - FOTO_REMAINING_TOTAL) > 0.01) return true
+  if (foto.startMonth !== '2026-09' || foto.endMonth !== '2026-12') return true
+
+  const openbarTotal = demands
+    .filter((d) => d.id === 'openbar' || d.id.startsWith('openbar__'))
+    .reduce((s, d) => s + (d.amount || 0), 0)
+  if (Math.abs(openbarTotal - OPEN_BAR_AMOUNT) > 0.01) return true
+
+  // Evita o formato antigo “until_wedding” espalhado sem mês definido.
+  if (
+    demands.some(
+      (d) =>
+        d.active &&
+        d.duration === 'until_wedding' &&
+        /obra|alian|openbar|terno|banda|love|buque/i.test(d.id),
+    )
+  ) {
+    return true
+  }
+
+  return false
+}
+
+/** Replaneja fixos mensais, Open Bar 2.280 e obra nos meses finais. */
+function applyWeddingReplanAug26(
+  wedding: WeddingState,
+  seedVersion: number | undefined,
+): WeddingState {
+  const seedOk =
+    seedVersion !== undefined && seedVersion >= WEDDING_REPLAN_AUG26_VERSION
+  if (seedOk && !weddingNeedsReplanAug26(wedding)) {
+    return wedding
+  }
+
+  const defaults = createDefaultDemands()
+  const defaultIds = new Set(defaults.map((d) => d.id))
+
+  const custom = (wedding.demands || []).filter((d) => {
+    if (defaultIds.has(d.id)) return false
+    const root = d.id.split('__')[0]
+    if (REPLAN_KNOWN_ROOTS.has(root)) return false
+    if (defaultIds.has(root)) return false
+    return true
+  })
+
+  let sortOrder = defaults.reduce((m, d) => Math.max(m, d.sortOrder), 0) + 1
+  const demands = [
+    ...defaults,
+    ...custom.map((d) => ({ ...d, sortOrder: sortOrder++ })),
+  ]
+
+  const base = createWeddingState()
+
+  return {
+    ...wedding,
+    demands,
+    flexItems: demandsToFlexItems(demands),
+    alreadyPaid: wedding.alreadyPaid?.length ? wedding.alreadyPaid : base.alreadyPaid,
+    checked: {
+      ...JUNE_PAID_CHECKS,
+      ...JULY_PAID_EXCEPT_DIA_NOIVA,
+      ...(wedding.checked || {}),
+    },
+    totals: {
+      ...base.totals,
+      ...(wedding.totals || {}),
+      salaRemaining: SALAO_REMAINING,
+      fotografo: FOTO_REMAINING_TOTAL,
+      preWedding: PRE_WEDDING_AMOUNT,
     },
   }
 }
@@ -797,12 +899,15 @@ export function hydrateState(parsed: Partial<FinanceState> | null | undefined): 
     parsed.seedVersion,
   )
 
-  const wedding = applySalaoOpenbarRecalc(
-    applyJulyPaidExceptDiaNoiva(
-      applyWeddingDemandsSeed(
-        applyNoivaParcelas(
-          applyVestidoAndJuly21Wedding(
-            applyWeddingJuneSeed(parsed.wedding, parsed.seedVersion),
+  const wedding = applyWeddingReplanAug26(
+    applySalaoOpenbarRecalc(
+      applyJulyPaidExceptDiaNoiva(
+        applyWeddingDemandsSeed(
+          applyNoivaParcelas(
+            applyVestidoAndJuly21Wedding(
+              applyWeddingJuneSeed(parsed.wedding, parsed.seedVersion),
+              parsed.seedVersion,
+            ),
             parsed.seedVersion,
           ),
           parsed.seedVersion,

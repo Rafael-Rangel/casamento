@@ -24,7 +24,7 @@ export const SALAO_LAST = 3661.2
 /** Legado — julho já quitado no histórico */
 export const SALAO_JUNE_PAID = 500
 export const SALAO_JUNE_REST = 1057
-export const OPEN_BAR_AMOUNT = 2100
+export const OPEN_BAR_AMOUNT = 2280
 export const VESTIDO_PM = 333.33
 export const VESTIDO_LAST = 333.33
 export const DIA_NOIVA_TOTAL = 2358
@@ -32,15 +32,26 @@ export const DIA_PM = 393
 export const DIA_LAST = 393
 export const LUA_MEL_TOTAL = 6000
 export const LUA_MEL_ID = 'lua'
+/** Fotógrafo restante (Set–Dez): 4 × R$ 544 */
+export const FOTO_REMAINING_TOTAL = 2176
+export const FOTO_PM = 544
+export const PRE_WEDDING_AMOUNT = 830
+/** Totais flexíveis atuais (preços cheios mantidos) */
+export const OBRA_CASA_AMOUNT = 2387.47
+export const ALIANCAS_AMOUNT = 1600
+export const BANDA_AMOUNT = 550
+export const LOVE_AMOUNT = 150
+export const TERNO_AMOUNT = 230
+export const BUQUE_AMOUNT = 250
 
 export const DEFAULT_FLEX: WeddingFlexItem[] = [
-  { id: 'obra-mat', name: 'Materiais / Obra banheiro', amount: 6556, tag: 'obra' },
-  { id: 'aliancas', name: 'Alianças de Ouro', amount: 2500, tag: 'casamento' },
-  { id: 'banda', name: 'Banda', amount: 600, tag: 'casamento' },
-  { id: 'love', name: 'Love – Decoração', amount: 150, tag: 'casamento' },
+  { id: 'obra-mat', name: 'Obra da Casa', amount: OBRA_CASA_AMOUNT, tag: 'obra' },
+  { id: 'aliancas', name: 'Alianças de Ouro', amount: ALIANCAS_AMOUNT, tag: 'casamento' },
+  { id: 'banda', name: 'Banda', amount: BANDA_AMOUNT, tag: 'casamento' },
+  { id: 'love', name: 'Love – Decoração', amount: LOVE_AMOUNT, tag: 'casamento' },
   { id: 'openbar', name: 'Open Bar', amount: OPEN_BAR_AMOUNT, tag: 'casamento' },
-  { id: 'terno', name: 'Terno do Noivo', amount: 1000, tag: 'casamento' },
-  { id: 'buque', name: 'Buquê da Noiva', amount: 250, tag: 'noiva' },
+  { id: 'terno', name: 'Terno do Noivo', amount: TERNO_AMOUNT, tag: 'casamento' },
+  { id: 'buque', name: 'Buquê da Noiva', amount: BUQUE_AMOUNT, tag: 'noiva' },
   { id: LUA_MEL_ID, name: 'Lua de Mel', amount: LUA_MEL_TOTAL, tag: 'luademel' },
 ]
 
@@ -250,46 +261,19 @@ function emojiForMonthKey(key: string): string {
 
 type FlexSpec = { id: string; name: string; amount: number; tag: string }
 
-/**
- * Distribui itens flexíveis nos meses com mais folga, após os custos fixos,
- * para deixar o total mensal o mais igual possível.
- */
-export function allocateFlexToLightMonths(
-  fixedLoadByMonth: Record<string, number>,
-  flexItems: FlexSpec[],
-  monthKeys: string[] = WEDDING_MONTHS.map((m) => m.key),
-): { id: string; name: string; amount: number; tag: string; month: string }[] {
-  const flexTotal = flexItems.reduce((s, f) => s + f.amount, 0)
-  const fixedTotal = monthKeys.reduce((s, m) => s + (fixedLoadByMonth[m] || 0), 0)
-  const avg = (fixedTotal + flexTotal) / Math.max(monthKeys.length, 1)
-  const cap: Record<string, number> = {}
-  for (const m of monthKeys) {
-    cap[m] = Math.max(0, Math.round((avg - (fixedLoadByMonth[m] || 0)) * 100) / 100)
-  }
+type FlexAllocation = {
+  id: string
+  name: string
+  amount: number
+  tag: string
+  month: string
+}
 
-  const buckets = new Map<string, Map<string, number>>() // itemId -> month -> amount
-  const meta = new Map<string, FlexSpec>()
-
-  for (const item of [...flexItems].sort((a, b) => b.amount - a.amount)) {
-    meta.set(item.id, item)
-    let rem = item.amount
-    while (rem > 0.009) {
-      const m = monthKeys.reduce((best, x) => ((cap[x] || 0) > (cap[best] || 0) ? x : best))
-      const room = cap[m] || 0
-      const pay =
-        room <= 0.009
-          ? Math.round(rem * 100) / 100
-          : Math.round(Math.min(room, rem) * 100) / 100
-      if (pay <= 0) break
-      if (!buckets.has(item.id)) buckets.set(item.id, new Map())
-      const byMonth = buckets.get(item.id)!
-      byMonth.set(m, Math.round(((byMonth.get(m) || 0) + pay) * 100) / 100)
-      cap[m] = Math.round(((cap[m] || 0) - pay) * 100) / 100
-      rem = Math.round((rem - pay) * 100) / 100
-    }
-  }
-
-  const out: { id: string; name: string; amount: number; tag: string; month: string }[] = []
+function allocationsFromBuckets(
+  buckets: Map<string, Map<string, number>>,
+  meta: Map<string, FlexSpec>,
+): FlexAllocation[] {
+  const out: FlexAllocation[] = []
   for (const [itemId, byMonth] of buckets) {
     const item = meta.get(itemId)!
     const months = [...byMonth.keys()].sort()
@@ -312,6 +296,84 @@ export function allocateFlexToLightMonths(
   return out
 }
 
+/**
+ * Distribui itens flexíveis nos meses com mais folga, após os custos fixos,
+ * para deixar o total mensal o mais igual possível.
+ */
+export function allocateFlexToLightMonths(
+  fixedLoadByMonth: Record<string, number>,
+  flexItems: FlexSpec[],
+  monthKeys: string[] = WEDDING_MONTHS.map((m) => m.key),
+): FlexAllocation[] {
+  const flexTotal = flexItems.reduce((s, f) => s + f.amount, 0)
+  const fixedTotal = monthKeys.reduce((s, m) => s + (fixedLoadByMonth[m] || 0), 0)
+  const avg = (fixedTotal + flexTotal) / Math.max(monthKeys.length, 1)
+  const cap: Record<string, number> = {}
+  for (const m of monthKeys) {
+    cap[m] = Math.max(0, Math.round((avg - (fixedLoadByMonth[m] || 0)) * 100) / 100)
+  }
+
+  const buckets = new Map<string, Map<string, number>>()
+  const meta = new Map<string, FlexSpec>()
+
+  for (const item of [...flexItems].sort((a, b) => b.amount - a.amount)) {
+    meta.set(item.id, item)
+    let rem = item.amount
+    while (rem > 0.009) {
+      const m = monthKeys.reduce((best, x) => ((cap[x] || 0) > (cap[best] || 0) ? x : best))
+      const room = cap[m] || 0
+      const pay =
+        room <= 0.009
+          ? Math.round(rem * 100) / 100
+          : Math.round(Math.min(room, rem) * 100) / 100
+      if (pay <= 0) break
+      if (!buckets.has(item.id)) buckets.set(item.id, new Map())
+      const byMonth = buckets.get(item.id)!
+      byMonth.set(m, Math.round(((byMonth.get(m) || 0) + pay) * 100) / 100)
+      cap[m] = Math.round(((cap[m] || 0) - pay) * 100) / 100
+      rem = Math.round((rem - pay) * 100) / 100
+    }
+  }
+
+  return allocationsFromBuckets(buckets, meta)
+}
+
+/**
+ * Equilibra o flex normal; obra vai para os meses mais próximos do casamento
+ * (Out–Dez), usando a sobra depois do restante.
+ */
+export function allocateFlexObraNearWedding(
+  fixedLoadByMonth: Record<string, number>,
+  flexItems: FlexSpec[],
+  monthKeys: string[] = WEDDING_MONTHS.map((m) => m.key),
+): FlexAllocation[] {
+  const obra = flexItems.filter((f) => f.tag === 'obra')
+  const other = flexItems.filter((f) => f.tag !== 'obra')
+  // Julho já passou / está quase pago — flex só de ago em diante.
+  const flexMonths = monthKeys.filter((m) => compareMonthKey(m, '2026-08') >= 0)
+  const allocatedOther = allocateFlexToLightMonths(
+    fixedLoadByMonth,
+    other,
+    flexMonths.length ? flexMonths : monthKeys,
+  )
+
+  const load: Record<string, number> = { ...fixedLoadByMonth }
+  for (const a of allocatedOther) {
+    load[a.month] = Math.round(((load[a.month] || 0) + a.amount) * 100) / 100
+  }
+
+  const obraMonths = monthKeys
+    .filter((m) => compareMonthKey(m, '2026-10') >= 0)
+    .sort((a, b) => a.localeCompare(b)) // Out → Nov → Dez
+  if (obraMonths.length === 0 || obra.length === 0) {
+    return allocatedOther
+  }
+
+  // Distribui a obra só entre Out–Dez, equilibrando a sobra nesses meses.
+  const allocatedObra = allocateFlexToLightMonths(load, obra, obraMonths)
+  return [...allocatedOther, ...allocatedObra]
+}
+
 function fixedMonthlyLoad(demands: WeddingDemand[], dateLabel: string): Record<string, number> {
   const weddingMonth = weddingDateToMonthKey(dateLabel)
   const planEnd = WEDDING_MONTHS[WEDDING_MONTHS.length - 1].key
@@ -329,13 +391,15 @@ function fixedMonthlyLoad(demands: WeddingDemand[], dateLabel: string): Record<s
 }
 
 /**
- * Demandas iniciais = parcelas mensais obrigatórias + flex equilibrado entre meses.
+ * Demandas iniciais = parcelas mensais obrigatórias + flex equilibrado.
+ * Obra vai para os meses mais próximos do casamento.
  */
 export function createDefaultDemands(): WeddingDemand[] {
   let order = 0
   const next = () => order++
   const jul = '2026-07'
   const ago = '2026-08'
+  const set = '2026-09'
   const dez = '2026-12'
   const dateLabel = '12/12/2026'
 
@@ -384,45 +448,24 @@ export function createDefaultDemands(): WeddingDemand[] {
       naming: 'simple_last',
     },
     {
-      id: 'obra-restante',
-      name: 'Obra banheiro (restante)',
-      amount: 600,
-      tag: 'obra',
-      duration: 'month',
-      startMonth: jul,
-      amountMode: 'per_month',
-      sortOrder: next(),
-      active: true,
-      naming: 'plain',
-    },
-    {
-      id: 'foto-1',
-      name: 'Fotógrafo – 1ª parcela',
-      amount: 1700,
+      id: 'foto',
+      name: 'Fotógrafo',
+      amount: FOTO_REMAINING_TOTAL,
       tag: 'foto',
-      duration: 'month',
-      startMonth: jul,
-      amountMode: 'per_month',
+      duration: 'range',
+      startMonth: set,
+      endMonth: dez,
+      amountMode: 'total_split',
       sortOrder: next(),
       active: true,
-      naming: 'plain',
-    },
-    {
-      id: 'foto-2',
-      name: 'Fotógrafo – 2ª parcela',
-      amount: 1700,
-      tag: 'foto',
-      duration: 'month',
-      startMonth: ago,
-      amountMode: 'per_month',
-      sortOrder: next(),
-      active: true,
-      naming: 'plain',
+      naming: 'parts',
+      partStart: 1,
+      partTotal: 4,
     },
     {
       id: 'pre-wedding',
       name: 'Pré-Wedding',
-      amount: 830,
+      amount: PRE_WEDDING_AMOUNT,
       tag: 'foto',
       duration: 'month',
       startMonth: dez,
@@ -447,17 +490,17 @@ export function createDefaultDemands(): WeddingDemand[] {
   ]
 
   const flexSpecs: FlexSpec[] = [
-    { id: 'obra-mat', name: 'Materiais / Obra banheiro', amount: 6556, tag: 'obra' },
-    { id: 'aliancas', name: 'Alianças de Ouro', amount: 2500, tag: 'casamento' },
-    { id: 'banda', name: 'Banda', amount: 600, tag: 'casamento' },
-    { id: 'love', name: 'Love – Decoração', amount: 150, tag: 'casamento' },
+    { id: 'obra-mat', name: 'Obra da Casa', amount: OBRA_CASA_AMOUNT, tag: 'obra' },
+    { id: 'aliancas', name: 'Alianças de Ouro', amount: ALIANCAS_AMOUNT, tag: 'casamento' },
+    { id: 'banda', name: 'Banda', amount: BANDA_AMOUNT, tag: 'casamento' },
+    { id: 'love', name: 'Love – Decoração', amount: LOVE_AMOUNT, tag: 'casamento' },
     { id: 'openbar', name: 'Open Bar', amount: OPEN_BAR_AMOUNT, tag: 'casamento' },
-    { id: 'terno', name: 'Terno do Noivo', amount: 1000, tag: 'casamento' },
-    { id: 'buque', name: 'Buquê da Noiva', amount: 250, tag: 'noiva' },
+    { id: 'terno', name: 'Terno do Noivo', amount: TERNO_AMOUNT, tag: 'casamento' },
+    { id: 'buque', name: 'Buquê da Noiva', amount: BUQUE_AMOUNT, tag: 'noiva' },
   ]
 
   const load = fixedMonthlyLoad(fixed, dateLabel)
-  const allocated = allocateFlexToLightMonths(load, flexSpecs)
+  const allocated = allocateFlexObraNearWedding(load, flexSpecs)
 
   const flexDemands: WeddingDemand[] = allocated.map((a) => ({
     id: a.id,
@@ -527,8 +570,8 @@ export function createWeddingState(): WeddingState {
       salaRemaining: SALAO_REMAINING,
       vestidoTotal: Math.round(VESTIDO_PM * 5 * 100) / 100,
       diaNoivaRemaining: DIA_NOIVA_TOTAL,
-      fotografo: 1700,
-      preWedding: 830,
+      fotografo: FOTO_REMAINING_TOTAL,
+      preWedding: PRE_WEDDING_AMOUNT,
       obraMaoDeObra: 0,
     },
   }
